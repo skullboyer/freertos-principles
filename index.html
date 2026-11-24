@@ -24,6 +24,9 @@
     @media(max-width:720px){.shell{display:block}.rail{position:sticky;z-index:10;top:0;height:auto;padding:9px 14px;border-right:0;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between}.brand{margin:0}.brand-mark{width:31px;height:31px}.rail nav{display:none;position:absolute;left:0;right:0;top:54px;background:#0c131b;padding:10px 14px;border-bottom:1px solid var(--line);grid-template-columns:repeat(2,1fr)}.rail nav.open{display:grid}.rail .rail-note{display:none}.mobile-menu{display:block;padding:7px 10px}.main{padding:18px 18px 60px}.hero{padding:42px 0}.hero p{font-size:16px}.topline{align-items:flex-start}.grid.two,.grid.three,.component-list,.sim-wrap,.size-lab{grid-template-columns:1fr}.flow{grid-template-columns:1fr}.task-row{grid-template-columns:86px 1fr 64px;padding:9px}.chapter{padding:42px 0}}
     @media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;transition-duration:.01ms!important}}
   </style>
+  <style>
+    .priority-inversion-callout{margin-top:15px;border-color:#685a39;background:linear-gradient(145deg,#211f18,#121a20)}.priority-inversion-callout h3{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.priority-inversion-callout>p{max-width:1000px}.priority-inversion-flow{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px;margin:14px 0}.pi-step{padding:12px;border:1px solid #3a4c50;border-radius:12px;background:#101a20}.pi-step b{display:block;margin:8px 0 4px;color:#e4eef0;font-size:12px}.pi-step small{display:block;color:#9eb0b8;font-size:10px;line-height:1.55}.pi-step .tag{margin:0}.pi-inheritance-note{padding:11px 13px;border-left:3px solid var(--mint);border-radius:0 10px 10px 0;background:#11251f;color:#c1d7d0;font-size:12px}.inherit-timing{margin:14px 0;padding:14px;border:1px solid #796943;border-radius:12px;background:linear-gradient(125deg,#282316,#171c1d)}.inherit-timing>strong{display:block;color:#ffe4a9;font-size:13px}.inherit-timing-flow{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:10px}.inherit-timing-step{padding:10px;border:1px solid #4b493c;border-radius:10px;background:#171b1b}.inherit-timing-step b{display:block;margin-bottom:4px;color:#e7eee8;font-size:11px}.inherit-timing-step span{color:#aebbb8;font-size:10px;line-height:1.55}.inherit-timing-sequence{margin-top:10px;color:#ffe4a9;font:11px/1.6 var(--mono);overflow-wrap:anywhere}.inherit-zero-wait{margin-top:10px;padding:10px 12px;border:1px solid #65543a;border-radius:10px;background:#201d16;color:#dacba8;font-size:11px;line-height:1.65}.inherit-zero-wait b{color:#ffe3a1}.priority-implementation{margin-top:14px}.priority-implementation>b{font-size:12px}.priority-implementation ol{font-size:12px;line-height:1.7}.priority-implementation p{margin:10px 0 0;color:#aebfc7;font-size:11px;line-height:1.65}.priority-inversion-callout .source-links{margin-top:12px}@media(max-width:900px){.priority-inversion-flow{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:720px){.inherit-timing-flow{grid-template-columns:1fr}}@media(max-width:520px){.priority-inversion-flow{grid-template-columns:1fr}}
+  </style>
 
   <style>
     .sched-console,.lab-shell{border:1px solid #2b414f;border-radius:22px;background:linear-gradient(145deg,#111c25,#0d141b);overflow:hidden;box-shadow:0 22px 70px #0005}
@@ -321,6 +324,105 @@
     #heapPolicyMemoryMap.libc-mode{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(120px,1.2fr) auto minmax(0,1fr);align-items:center;gap:9px}.heap-flow-arrow.active{color:#74d8b7}.heap-policy-stage span{display:block}
     @media(max-width:470px){#heapPolicyMemoryMap.libc-mode{grid-template-columns:1fr;gap:3px}}
   </style>
+  <style>
+    .list-map-detail{margin:0 0 12px;padding:15px 17px;border-color:#344b58;background:linear-gradient(145deg,#121f28,#0f1921)}
+    .list-map-detail h4{margin:0 0 6px;color:#e3eef2;font-size:15px;line-height:1.4}
+    .list-map-detail>p{margin:0;color:#aebfc7;font-size:12px;line-height:1.65}
+    .list-map-detail ol{display:grid;gap:7px;margin:9px 0 0;padding-left:21px;color:#b9c9cf;font-size:12px;line-height:1.65}
+    .list-map-detail li{padding-left:3px}
+    .list-map-detail li>b{color:#dce9ed}
+    .list-map-detail ul{display:grid;gap:4px;margin:6px 0 1px;padding-left:18px;color:#a9bbc3;font-size:11px}
+    .list-map-detail .list-map-scope{margin-top:8px;padding-top:8px;border-top:1px solid #263b46;color:#879da7;font-size:11px}
+    .list-map-detail .list-map-path{margin-top:9px;padding:8px 10px;border:1px solid #2b414d;border-radius:9px;background:#0b151c;color:#91dac0;font-size:11px;overflow-wrap:anywhere}
+    .list-map-detail .list-map-path b{margin-right:6px;color:#68e0bd}
+    @media(max-width:600px){.list-map-detail{padding:12px}.list-map-detail ol{padding-left:19px}.list-map-detail ul{padding-left:15px}}
+  </style>
+  <style>
+    .scheduler-algorithm{margin-top:15px;padding:17px;border-color:#344b58;background:linear-gradient(145deg,#121f28,#0e1820)}
+    .scheduler-algorithm-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px}
+    .scheduler-algorithm-head h3{margin:0 0 5px;color:#e5eff2;font-size:17px;line-height:1.4}
+    .scheduler-algorithm-head p{max-width:850px;margin:0;color:#aabdc5;font-size:12px;line-height:1.65}
+    .scheduler-algorithm-scope{flex:0 0 auto;padding:6px 9px;border:1px solid #315348;border-radius:99px;background:#10251e;color:#83d5b5;font:9px var(--mono)}
+    .kernel-sched-steps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;margin-top:13px}
+    .kernel-sched-step{min-width:0;padding:12px;border:1px solid #293f4a;border-radius:12px;background:#101b23}
+    .kernel-sched-step-head{display:flex;align-items:center;gap:8px}
+    .kernel-sched-step-no{display:grid;place-items:center;flex:0 0 25px;height:25px;border:1px solid #3c7963;border-radius:50%;background:#143126;color:#a5f0d0;font:10px var(--mono)}
+    .kernel-sched-step h4{margin:0;color:#dce9ed;font-size:12px;line-height:1.45}
+    .kernel-sched-step p{margin:8px 0 0;color:#aabac2;font-size:11px;line-height:1.65}
+    .kernel-sched-step p+p{margin-top:6px}
+    .kernel-sched-step .source-links{margin-top:8px}
+    .kernel-sched-route{display:flex;align-items:center;justify-content:center;gap:7px;flex-wrap:wrap;margin-top:10px;padding:10px;border:1px solid #2a414d;border-radius:10px;background:#0b151c;color:#8ed9bd;text-align:center;font:10px/1.6 var(--mono)}
+    .kernel-sched-route i{color:#526e78;font-style:normal}
+    .kernel-sched-notes{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:9px}
+    .kernel-sched-note{padding:10px 11px;border:1px solid #293e49;border-radius:10px;background:#111d25;color:#98abb4;font-size:10px;line-height:1.6}
+    .kernel-sched-note b{display:block;margin-bottom:3px;color:#e7b96d;font-size:10px}
+    .bitmap-source{margin-top:9px;border:1px solid #304753;border-radius:10px;background:#0b151c;overflow:hidden}
+    .bitmap-source summary{padding:9px 10px;cursor:pointer;color:#8de0bf;font-size:10px;line-height:1.5;list-style:none}
+    .bitmap-source summary::-webkit-details-marker{display:none}
+    .bitmap-source summary:after{content:"＋";float:right;color:#7d9aa5;font:12px var(--mono)}
+    .bitmap-source[open] summary{border-bottom:1px solid #263b46}
+    .bitmap-source[open] summary:after{content:"−"}
+    .bitmap-source-body{padding:9px}
+    .bitmap-source-body>p{margin:0 0 7px;color:#93a8b1;font-size:9px;line-height:1.55}
+    .bitmap-source-body h5{margin:9px 0 5px;color:#d8e6eb;font-size:10px}
+    .bitmap-source-body pre{margin:0;padding:9px;border-radius:8px;font-size:9px;line-height:1.55;overflow-wrap:anywhere}
+    .bitmap-source-body pre code{padding:0;border:0;border-radius:0;background:transparent;color:#c9dce3;font-size:inherit}
+    .bitmap-example{margin-top:8px;padding:8px;border:1px solid #29424c;border-radius:8px;color:#a9bec6;font:9px/1.6 var(--mono);overflow-wrap:anywhere}
+    .bitmap-example b{color:#86dfbd}
+    .bitmap-walkthrough{margin-top:13px;padding:19px;border-color:#344b58;background:linear-gradient(145deg,#121f28,#0d171e)}
+    .bitmap-walkthrough-head{display:flex;align-items:flex-start;justify-content:space-between;gap:15px}
+    .bitmap-walkthrough-head h3{margin:3px 0 5px;color:#e5eff2;font-size:18px;line-height:1.4}
+    .bitmap-walkthrough-head p{max-width:920px;margin:0;color:#aabdc5;font-size:12px;line-height:1.65}
+    .bitmap-scope{flex:0 0 auto;padding:7px 10px;border:1px solid #315348;border-radius:99px;background:#10251e;color:#83d5b5;font:9px var(--mono)}
+    .bitmap-visual-grid{display:grid;grid-template-columns:1.1fr .9fr;gap:11px;margin-top:13px}
+    .bitmap-visual-panel{min-width:0;padding:14px;border:1px solid #2a414c;border-radius:12px;background:#0d171e}
+    .bitmap-panel-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:11px}
+    .bitmap-panel-heading b{color:#dce9ed;font-size:12px}
+    .bitmap-panel-heading>span{color:#8299a3;font-size:9px;text-align:right}
+    .bitmap-panel-heading code{font:9px var(--mono);white-space:nowrap}
+    .bitmap-word{display:grid;grid-template-columns:minmax(130px,1.45fr) repeat(8,minmax(27px,1fr));gap:4px}
+    .bitmap-zero,.bitmap-bit{display:flex;min-width:0;min-height:57px;flex-direction:column;justify-content:center;align-items:center;gap:4px;border:1px solid #2b414c;border-radius:8px;background:#111e26;text-align:center}
+    .bitmap-zero b{color:#a7bac2;font:12px var(--mono);letter-spacing:.06em}
+    .bitmap-zero small,.bitmap-bit small{color:#839aa4;font:8px var(--mono)}
+    .bitmap-bit b{color:#728892;font:16px var(--mono)}
+    .bitmap-bit.active{border-color:#43866e;background:#15332a;box-shadow:inset 0 0 15px #68e0bd0b}
+    .bitmap-bit.active b{color:#9af0ce}
+    .bitmap-bit.active small{color:#74d4b1}
+    .bitmap-word-legend{display:flex;justify-content:space-between;gap:8px;margin-top:5px;color:#718994;font-size:8px}
+    .bitmap-visual-panel>p{margin:9px 0 0;color:#9eafb7;font-size:10px;line-height:1.65}
+    .bitmap-calc{display:flex;align-items:center;justify-content:center;gap:12px;margin:4px 0 12px;padding:11px;border:1px solid #2b414c;border-radius:10px;background:#111e26}
+    .bitmap-calc>div{display:grid;gap:3px;text-align:center}
+    .bitmap-calc small{color:#86d6b7;font:9px var(--mono)}
+    .bitmap-calc b{color:#e5f1f2;font:22px var(--mono);line-height:1.2}
+    .bitmap-calc span{color:#8298a1;font-size:8px}
+    .bitmap-calc>i{color:#527364;font:18px var(--mono);font-style:normal}
+    .bitmap-clz-notes{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:10px}
+    .bitmap-clz-method{margin:0;padding:11px 12px;border:1px solid #2a5145;border-left:3px solid #55a987;border-radius:9px;background:#10231f;color:#a9c5bb;font-size:10px;line-height:1.7}
+    .bitmap-clz-method b{color:#9be3c4}
+    .bitmap-clz-method code{white-space:normal;overflow-wrap:anywhere}
+    .bitmap-ready-lists{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+    .bitmap-ready-list{display:grid;gap:4px;min-width:0;padding:9px;border:1px solid #2b414c;border-radius:9px;background:#111e26}
+    .bitmap-ready-list b{color:#adbec5;font:9px var(--mono);overflow-wrap:anywhere}
+    .bitmap-ready-list span{color:#82959e;font-size:8px;line-height:1.45}
+    .bitmap-ready-list.selected{border-color:#43866e;background:#153128}
+    .bitmap-ready-list.selected b{color:#a4f0d1}
+    .bitmap-ready-list.selected span{color:#81c9ab}
+    .bitmap-maintenance-flow{display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;margin-top:10px;padding:10px;border:1px solid #293f49;border-radius:10px;background:#0b151c;color:#a4bbc3;text-align:center;font-size:10px;line-height:1.5}
+    .bitmap-maintenance-flow i{color:#5a766f;font:14px var(--mono);font-style:normal}
+    .bitmap-code-intro{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin:13px 0 6px}
+    .bitmap-code-intro b{color:#e2edf0;font-size:12px}
+    .bitmap-code-intro span{color:#8198a2;font-size:10px}
+    .bitmap-walkthrough .bitmap-source{margin-top:0}
+    .bitmap-walkthrough .bitmap-source summary{padding:11px 13px;font-size:11px}
+    .bitmap-walkthrough .bitmap-source-body{padding:13px 15px}
+    .bitmap-walkthrough .bitmap-source-body>p{font-size:11px}
+    .bitmap-walkthrough .bitmap-source-body h5{font-size:12px}
+    .bitmap-walkthrough .bitmap-source-body pre{padding:12px;font-size:10px;line-height:1.6}
+    .bitmap-walkthrough .bitmap-example{font-size:10px}
+    @media(max-width:900px){.kernel-sched-steps{grid-template-columns:repeat(2,minmax(0,1fr))}.kernel-sched-notes{grid-template-columns:1fr}}
+    @media(max-width:760px){.bitmap-visual-grid{grid-template-columns:1fr}.bitmap-word{grid-template-columns:repeat(4,minmax(0,1fr))}.bitmap-zero{grid-column:1/-1}.bitmap-walkthrough-head{flex-direction:column}}
+    @media(max-width:600px){.scheduler-algorithm{padding:12px}.scheduler-algorithm-head{flex-direction:column}.kernel-sched-steps{grid-template-columns:1fr}.kernel-sched-route{justify-content:flex-start;text-align:left}.bitmap-walkthrough{padding:12px}.bitmap-visual-panel{padding:10px}.bitmap-panel-heading{flex-direction:column}.bitmap-panel-heading>span{text-align:left}.bitmap-ready-lists,.bitmap-clz-notes{grid-template-columns:1fr}.bitmap-maintenance-flow{justify-content:flex-start;text-align:left}}
+  </style>
 
 </head>
 <body>
@@ -330,7 +432,7 @@
       <div class="brand"><div class="brand-mark">RT</div><div><b>FreeRTOS 源码导览</b><small>202604-LTS 仓库视角</small></div></div>
       <button class="mobile-menu" id="menuBtn" aria-expanded="false">章节目录</button>
       <nav id="nav">
-        <a href="#start">从这里开始</a><a href="#scheduler">调度算法动画</a><a href="#lifecycle">任务与上下文</a><a href="#primitives">内核组件地图</a><a href="#mechanism-lab">组件机制动画</a><a href="#memory">内存与结构体大小</a><a href="#interrupts">中断处理与定时器</a><a href="#libraries">LTS 组件全览</a><a href="#patterns">典型用法模板</a><a href="#check">核心知识练习</a><a href="#sources">源码定位与核验</a>
+        <a href="#scheduler">01 调度器</a><a href="#lifecycle">02 任务生命周期</a><a href="#primitives">03 内核组件</a><a href="#memory">04 内存</a><a href="#interrupts">05 中断与定时器</a><a href="#libraries">06 LTS 组件</a><a href="#patterns">07 应用模式</a><a href="#check">08 知识练习</a><a href="#sources">09 源码核验</a>
       </nav>
       <div class="rail-note">每个知识点均附有本仓库对应的源码入口。模拟动画中的优先级和队列容量是演示参数；真实工程参数以自己的 <code>FreeRTOSConfig.h</code> 和目标移植层为准。</div>
     </aside>
@@ -412,11 +514,142 @@
               <div class="timeline-panel card"><div class="timeline-heading"><h3>本轨迹步骤导航</h3><span>点击任一刻度可跳转</span></div><div class="timeline" id="schedTimeline" aria-label="调度轨迹步骤导航"></div><div class="timeline-legend"><span><i class="legend-swatch done"></i>已播放</span><span><i class="legend-swatch active"></i>当前步骤</span><span><i class="legend-swatch upcoming"></i>尚未播放</span></div><p class="timeline-note">时间线上的每个刻度对应左侧动画的一步，用于定位播放进度；当前步骤的内核动作见上方右侧步骤说明。</p><div class="timeline-source-label">动画对应的源码入口</div><div class="source-links"><a href="../../FreeRTOS/FreeRTOS-Kernel/tasks.c">tasks.c · tick、解除阻塞与任务选择</a><a href="../../FreeRTOS/FreeRTOS-Kernel/list.c">list.c · Ready list 与游标</a><a href="../../FreeRTOS/FreeRTOS-Kernel/portable/">portable · 处理器现场保存 / 恢复</a></div></div>
           </div>
         </div>
+        <article class="card scheduler-algorithm" id="scheduler-algorithm">
+          <div class="scheduler-algorithm-head"><div><h3>内核调度算法：从状态变化到任务继续运行</h3><p>下面按本仓库的单核通用路径说明一次完整调度。调度器不会不断扫描全部任务；状态变化先改变各条链表，只有到达切换点时，内核才从 Ready 集合中选下一任务。</p></div><span class="scheduler-algorithm-scope">单核 · FreeRTOS Kernel</span></div>
+          <div class="kernel-sched-steps">
+            <section class="kernel-sched-step"><div class="kernel-sched-step-head"><span class="kernel-sched-step-no">01</span><h4>任务状态或事件发生变化</h4></div><p>任务真正进入阻塞时，当前任务的状态节点离开 Ready：有限超时通常进入延时链表；若等待队列、信号量等对象，事件节点还会进入该对象的事件等待链表；无限期等待时，状态节点也可能进入挂起链表。</p><p>事件到达、超时到期或显式恢复时，内核按对应路径摘除状态节点及必要的事件节点，再把任务放入其优先级的 Ready 链表。等待链表决定谁的条件先满足；Ready 决定谁有资格竞争 CPU。</p><div class="source-links"><a href="../../FreeRTOS/FreeRTOS-Kernel/tasks.c">tasks.c · 阻塞、唤醒、tick</a></div></section>
+            <section class="kernel-sched-step"><div class="kernel-sched-step-head"><span class="kernel-sched-step-no">02</span><h4>按配置判断是否请求切换</h4></div><p>抢占开启时，新就绪任务优先级高于当前任务会请求切换。抢占与时间片都开启时，tick 发现当前优先级的 Ready 链表有多个任务，也会请求同级轮转。任务主动让出 CPU 或当前任务阻塞，也会进入调度路径。</p><p>因此 tick 不等于必然切换：没有到期唤醒、没有同级轮转条件时，当前任务可以继续运行。关闭抢占时，tick 不会仅因高优先级任务就绪而抢占当前任务。</p><div class="source-links"><a href="../../FreeRTOS/FreeRTOS-Kernel/tasks.c">tasks.c · xTaskIncrementTick</a></div></section>
+            <section class="kernel-sched-step"><div class="kernel-sched-step-head"><span class="kernel-sched-step-no">03</span><h4>移植层保存当前任务现场</h4></div><p>切换请求到达处理器切换入口后，port 保存当前任务需要保留的寄存器和栈指针到该任务自己的栈 / TCB。Cortex-M4F 的例子由 PendSV 完成这一步，再调用内核选择器。</p><p>任务切换是“保存旧任务 → 选新任务 → 恢复新任务”，寄存器帧布局由目标 port 决定。</p><div class="source-links"><a href="../../FreeRTOS/FreeRTOS-Kernel/portable/GCC/ARM_CM4F/port.c">ARM_CM4F · xPortPendSVHandler</a></div></section>
+            <section class="kernel-sched-step"><div class="kernel-sched-step-head"><span class="kernel-sched-step-no">04</span><h4>只从 Ready 链表选最高优先级</h4></div>
+              <p>通用实现从记录的最高 Ready 优先级向下跳过空链表；启用 port 优化时，用端口提供的优先级位图 / 操作找到最高非空优先级。延时、对象等待、挂起和待清理链表都不参与 CPU 候选比较。</p>
+              <p>选中优先级后，<code>listGET_OWNER_OF_NEXT_ENTRY()</code> 沿该级链表游标取下一个 TCB；同优先级轮转在这里完成。被选中的任务仍是 Ready，节点不会因为正在单核上运行而摘出 Ready 链表。</p>
+              <div class="source-links"><a href="../../FreeRTOS/FreeRTOS-Kernel/tasks.c">tasks.c · taskSELECT_HIGHEST_PRIORITY_TASK</a><a href="../../FreeRTOS/FreeRTOS-Kernel/list.c">list.c · 链表游标</a><a href="#bitmap-selector">位图图示与源码 →</a></div>
+
+            </section>
+            <section class="kernel-sched-step"><div class="kernel-sched-step-head"><span class="kernel-sched-step-no">05</span><h4>更新当前任务指针</h4></div><p>选择宏把新任务的 TCB 写入 <code>pxCurrentTCB</code>。此处完成的是“内核决定下一个运行谁”；栈指针和处理器寄存器还要由 port 在切换返回路径中恢复。</p><p>如果调度器仍处于挂起状态，<code>vTaskSwitchContext()</code> 不执行选择，而是记录待处理的 yield；事件唤醒的事件节点暂存于 <code>xPendingReadyList</code>，恢复时再拆除对应节点、转入 Ready，并处理积压 tick。</p><div class="source-links"><a href="../../FreeRTOS/FreeRTOS-Kernel/tasks.c">tasks.c · vTaskSwitchContext / xTaskResumeAll</a></div></section>
+            <section class="kernel-sched-step"><div class="kernel-sched-step-head"><span class="kernel-sched-step-no">06</span><h4>恢复新任务并从原处继续</h4></div><p>port 从新任务 TCB 取出保存的栈顶，恢复寄存器并异常返回。此前被抢占的任务从中断处继续；曾阻塞的任务从阻塞 API 返回后继续；首次运行的任务则从任务入口开始。</p><p>内核启动第一个任务是特殊路径：Cortex-M 使用 SVC 恢复初始任务栈帧，不经过一次普通的“切出旧任务”流程。</p><div class="source-links"><a href="../../FreeRTOS/FreeRTOS-Kernel/portable/GCC/ARM_CM4F/port.c">ARM_CM4F · PendSV / SVC</a></div></section>
+          </div>
+          <div class="kernel-sched-route" aria-label="调度算法总流程"><span>API / tick / ISR 改变状态</span><i>→</i><span>满足条件进入 Ready</span><i>→</i><span>达到切换点</span><i>→</i><span>保存现场</span><i>→</i><span>最高非空优先级 + 同级游标</span><i>→</i><span>更新 pxCurrentTCB</span><i>→</i><span>恢复并继续</span></div>
+          <div class="kernel-sched-notes"><div class="kernel-sched-note"><b>Ready 不表示正在运行</b>它表示任务已具备运行条件。任务入 Ready 后是否立刻运行，还要看当前任务优先级、抢占配置和实际切换点。</div><div class="kernel-sched-note"><b>同级选择与优先级选择分两步</b>先挑最高非空优先级，再由该 Ready 链表的游标挑同级下一个任务；关闭时间片不会关闭高优先级抢占。</div><div class="kernel-sched-note"><b>挂起调度器会延后整理</b>挂起期间被事件唤醒的任务先记入 Pending Ready；恢复时转入正式 Ready 链表，再按正常选择流程决定运行者。</div></div>
+        </article>
+        <article class="card bitmap-walkthrough" id="bitmap-selector">
+          <div class="bitmap-walkthrough-head"><div><span class="kicker">BITMAP READY SELECTOR · GCC ARM_CM4F</span><h3>位图怎样快速找到最高优先级 Ready 链表</h3><p>一个位对应一个优先级。位图记录“哪些优先级至少有一个 Ready 任务”；CLZ 一次定位最高置位，再访问该级 Ready 链表。下面用 7、5 两级有任务的例子展开。</p></div><span class="bitmap-scope">32 位优先级图示</span></div>
+          <div class="bitmap-visual-grid" role="img" aria-label="位图中优先级 7 和 5 置位，CLZ 算出最高优先级为 7，随后选择对应 Ready 链表">
+            <div class="bitmap-visual-panel">
+              <div class="bitmap-panel-heading"><b>就绪优先级位图</b><code>uxTopReadyPriority = 0x000000A0</code></div>
+              <div class="bitmap-word" aria-hidden="true">
+                <div class="bitmap-zero"><b>0000…0000</b><small>bit 31–8 · 24 个前导 0</small></div>
+                <div class="bitmap-bit active"><b>1</b><small>7</small></div><div class="bitmap-bit"><b>0</b><small>6</small></div><div class="bitmap-bit active"><b>1</b><small>5</small></div><div class="bitmap-bit"><b>0</b><small>4</small></div><div class="bitmap-bit"><b>0</b><small>3</small></div><div class="bitmap-bit"><b>0</b><small>2</small></div><div class="bitmap-bit"><b>0</b><small>1</small></div><div class="bitmap-bit"><b>0</b><small>0</small></div>
+              </div>
+              <div class="bitmap-word-legend"><span>左侧是高位</span><span>每格下方是优先级编号</span></div>
+              <p>Ready 链表加入第 p 级任务时置位 p；该级最后一个 Ready 任务离开时清位。多个同级任务仍只占一个位。</p>
+            </div>
+            <div class="bitmap-visual-panel">
+              <div class="bitmap-panel-heading"><b>定位并取出任务</b><span>优先级数字越大，优先级越高</span></div>
+              <div class="bitmap-calc"><div><small>CLZ(0xA0)</small><b>24</b><span>前导零数</span></div><i>→</i><div><small>31 − 24</small><b>7</b><span>最高置位索引</span></div></div>
+              <div class="bitmap-ready-lists"><div class="bitmap-ready-list selected"><b>pxReadyTasksLists[7]</b><span>先选最高非空优先级</span></div><div class="bitmap-ready-list"><b>pxReadyTasksLists[5]</b><span>本轮不检查更低级</span></div></div>
+              <p>位图选出优先级 7 后，<code>listGET_OWNER_OF_NEXT_ENTRY()</code> 沿第 7 级链表的 <code>pxIndex</code> 游标取下一个 TCB。同级轮转发生在这一步，不由位图完成。</p>
+            </div>
+          </div>
+          <div class="bitmap-clz-notes">
+            <p class="bitmap-clz-method"><b>CLZ 的数法：</b>把数视为 32 位，从最高位 bit31 向 bit0 扫描，统计遇到第一个 1 之前连续的 0（不包含这个 1）。<code>0xA0</code> 补齐为 <code>00000000 00000000 00000000 10100000</code>，前 24 位是 0，所以 <code>CLZ=24</code>；再用 <code>31−24=7</code> 得到最高置位的位号。</p>
+            <p class="bitmap-clz-method"><b>本 port 的实际实现：</b><code>ucPortCountLeadingZeros()</code> 用 GCC 内联汇编执行 Cortex-M 的 <code>CLZ</code> 指令。汇编模板里的 <code>%1</code> 对应输入约束 <code>"r"( ulBitmap )</code>，<code>%0</code> 对应输出约束 <code>"=r"( ucReturn )</code>；处理器把计数写入该输出寄存器。随后 <code>portGET_HIGHEST_PRIORITY</code> 把计数换算成优先级索引。</p>
+          </div>
+          <div class="bitmap-maintenance-flow"><span>任务进 Ready：置位 p</span><i>→</i><span>CLZ 定位最高置位 p</span><i>→</i><span>访问 Ready[p] 并推进同级游标</span><i>→</i><span>该级链表清空：清位 p</span></div>
+          <div class="bitmap-code-intro"><b>对应源码</b><span>已加入行内注释；点击展开查看。不同 port 会使用自己的 CLZ / 位扫描实现。</span></div>
+              <details class="bitmap-source">
+                <summary>展开位图选择器源码与注释（默认折叠）</summary>
+                <div class="bitmap-source-body">
+                  <p>以下摘录对应本仓库 GCC ARM_CM4F port，并把内核 <code>tasks.c</code> 的选择宏与移植层 <code>portmacro.h</code> 的 32 位 CLZ 位图宏放在一起。优化路径下，<code>uxTopReadyPriority</code> 保存的是就绪优先级位图；每一位为 1 表示该优先级至少有一个 Ready 任务。</p>
+                  <h5>1. tasks.c：设置 / 清除位图，并选取 Ready 链表游标</h5>
+                  <pre><code>/* task 进入 Ready 时：置位 priority 对应位 */
+#define taskRECORD_READY_PRIORITY( uxPriority ) &#92;
+    portRECORD_READY_PRIORITY( ( uxPriority ), uxTopReadyPriority )
+
+/* prvAddTaskToReadyList 的关键顺序：先记优先级，再把状态节点插入对应 Ready 链表 */
+taskRECORD_READY_PRIORITY( ( pxTCB )-&gt;uxPriority );
+listINSERT_END( &#38;( pxReadyTasksLists[ ( pxTCB )-&gt;uxPriority ] ), &#92;
+                &#38;( ( pxTCB )-&gt;xStateListItem ) );
+
+/* 位图定位最高优先级后，沿该优先级链表的游标选下一个 TCB */
+#define taskSELECT_HIGHEST_PRIORITY_TASK() &#92;
+do { &#92;
+    UBaseType_t uxTopPriority; &#92;
+    portGET_HIGHEST_PRIORITY( uxTopPriority, uxTopReadyPriority ); &#92;
+    configASSERT( listCURRENT_LIST_LENGTH( &#38;( pxReadyTasksLists[ uxTopPriority ] ) ) &gt; 0 ); &#92;
+    listGET_OWNER_OF_NEXT_ENTRY( pxCurrentTCB, &#38;( pxReadyTasksLists[ uxTopPriority ] ) ); &#92;
+} while( 0 )
+
+/* 只有该优先级 Ready 链表清空时，才清除位图中的对应位 */
+#define taskRESET_READY_PRIORITY( uxPriority ) &#92;
+do { &#92;
+    if( listCURRENT_LIST_LENGTH( &#38;( pxReadyTasksLists[ ( uxPriority ) ] ) ) == ( UBaseType_t ) 0 ) &#92;
+    { &#92;
+        portRESET_READY_PRIORITY( ( uxPriority ), ( uxTopReadyPriority ) ); &#92;
+    } &#92;
+} while( 0 )</code></pre>
+                  <h5>2. GCC ARM_CM4F/portmacro.h：记录位并用 CLZ 找最高置位</h5>
+                  <pre><code>/* ARM CLZ 指令直接计数；GCC 将 %1 绑定到输入 ulBitmap，将结果 %0 写入 ucReturn */
+static inline uint8_t ucPortCountLeadingZeros( uint32_t ulBitmap )
+{
+    uint8_t ucReturn;
+    __asm volatile ( "clz %0, %1" : "=r" ( ucReturn ) : "r" ( ulBitmap ) : "memory" );
+    return ucReturn;
+}
+
+/* Ready priority p 到来：把 bitmap 的第 p 位置 1 */
+#define portRECORD_READY_PRIORITY( uxPriority, uxReadyPriorities ) &#92;
+    ( uxReadyPriorities ) |= ( 1UL &lt;&lt; ( uxPriority ) )
+
+/* p 级 Ready 链表空了：把 bitmap 的第 p 位清 0 */
+#define portRESET_READY_PRIORITY( uxPriority, uxReadyPriorities ) &#92;
+    ( uxReadyPriorities ) &#38;= ~( 1UL &lt;&lt; ( uxPriority ) )
+
+/* 最高置位索引 = 31 - 前导零数，也就是最高 Ready 优先级 */
+#define portGET_HIGHEST_PRIORITY( uxTopPriority, uxReadyPriorities ) &#92;
+    uxTopPriority = ( 31UL - ( uint32_t ) ucPortCountLeadingZeros( ( uxReadyPriorities ) ) )</code></pre>
+                  <div class="bitmap-example"><b>例子：</b>若位图只有优先级 7 和 5 的位置 1，值为 <code>0x000000A0</code>；CLZ 返回 24，<code>31 - 24 = 7</code>，所以先访问 <code>pxReadyTasksLists[7]</code>。若该链表里有多个同级任务，再由 <code>listGET_OWNER_OF_NEXT_ENTRY()</code> 推进游标选出下一个。</div>
+                  <p style="margin-top:8px">这个 port 用 32 位位图，因此要求 <code>configMAX_PRIORITIES &lt;= 32</code>。位图只负责定位最高非空优先级；同级轮转仍由 Ready 链表的 <code>pxIndex</code> 完成。</p>
+                  <div class="source-links"><a href="../../FreeRTOS/FreeRTOS-Kernel/tasks.c">tasks.c · 选择与位图更新</a><a href="../../FreeRTOS/FreeRTOS-Kernel/portable/GCC/ARM_CM4F/portmacro.h">GCC ARM_CM4F · portmacro.h</a></div>
+                </div>
+              </details>
+        </article>
         <div class="grid three" style="margin-top:15px">
           <div class="card"><h3>固定优先级</h3><p>优先级高的就绪任务先运行。优先级只是调度权重，不等于“任务更重要”的安全等级；配置可用优先级数量由 <code>configMAX_PRIORITIES</code> 决定。</p></div>
           <div class="card"><h3>抢占与时间片是两件事</h3><p><code>configUSE_PREEMPTION</code> 控制抢占行为；<code>configUSE_TIME_SLICING</code> 控制抢占模式下同优先级任务是否在 tick 检查中轮转。关闭时间片不等于关闭高优先级抢占。</p></div>
           <div class="card"><h3>就绪不等于运行</h3><p>就绪：条件满足，等待 CPU。运行：当前正占用 CPU。阻塞：等事件或超时。挂起：显式停止参与调度。一个任务在单核上同一时刻不会既运行又阻塞。</p></div>
         </div>
+        <article class="card priority-inversion-callout" id="priority-inversion">
+          <h3>优先级反转：高优先级任务为什么会被“中间”任务拖住？ <span class="tag">Priority Inversion</span></h3>
+          <p>低优先级任务 <b>L</b> 持有 mutex 后被抢占；高优先级任务 <b>H</b> 随后请求同一把锁并阻塞。此时中优先级任务 <b>M</b> 可以抢占仍需运行来释放锁的 L，于是 H 虽然优先级最高，却间接等着 M 运行完——这就是优先级反转。</p>
+          <div class="priority-inversion-flow" aria-label="优先级反转和优先级继承过程">
+            <div class="pi-step"><span class="tag">P1 · L</span><b>先拿到 mutex</b><small>L 进入临界区，暂时拥有共享资源。</small></div>
+            <div class="pi-step"><span class="tag">P2 · M</span><b>抢占 L</b><small>M 就绪后优先级高于 L，L 暂时无法完成临界区。</small></div>
+            <div class="pi-step"><span class="tag">P3 · H</span><b>请求锁并阻塞</b><small>H 需要 L 持有的锁；H 等待时，M 仍可能继续抢占 L。</small></div>
+            <div class="pi-step"><span class="tag">Priority Inheritance</span><b>临时提升 L</b><small>mutex 让 L 继承等待者的有效优先级；L 先运行并释放锁，随后 H 才能取得锁。</small></div>
+          </div>
+          <div class="pi-inheritance-note"><b>记住：</b>优先级继承是 mutex 用来缩短这类阻塞的缓解机制，不会让 H 越过锁直接运行，也不会自动检测或解除死锁。普通二元信号量没有 mutex 的所有者与优先级继承语义。</div>
+          <div class="trace-breakdown priority-implementation"><b>FreeRTOS 源码里，继承具体这样实现</b>
+            <div class="inherit-timing"><strong>精确时机：H 的 <code>xSemaphoreTake()</code> 慢路径中，先提升 L，再让 H 阻塞</strong>
+              <div class="pi-inheritance-note" style="margin:10px 0 0">经典顺序是 L 持锁 → M 抢占 L → H 就绪后抢占 M 并执行 Take。优先级继承不是 H 运行前预先发生的；要等 H 在 Take 慢路径发现 mutex 仍被占用，才会提升 L。</div>
+              <div class="inherit-timing-flow">
+                <div class="inherit-timing-step"><b>① H 运行后请求已被占用的锁</b><span>M 可能已先抢占 L；H 就绪后抢占 M，再进入 <code>xQueueSemaphoreTake()</code>。此时 mutex 计数为 0，等待尚未超时。</span></div>
+                <div class="inherit-timing-step"><b>② 立刻执行优先级继承</b><span>内核在临界区调用 <code>xTaskPriorityInherit(L)</code>。此刻 H 仍在执行 Take，尚未进入阻塞态。</span></div>
+                <div class="inherit-timing-step"><b>③ 然后才挂起 H</b><span>调用 <code>vTaskPlaceOnEventList()</code> 把 H 放入 mutex 等待列表，恢复调度器并在需要时切换；提升后的 L 得以先运行。</span></div>
+              </div>
+              <div class="inherit-timing-sequence">源码顺序：xTaskPriorityInherit(L) → vTaskPlaceOnEventList(H) → 调度切换</div>
+              <div class="inherit-zero-wait"><b>如果等待时间是 0：</b>当 mutex 计数也为 0 时，<code>xQueueSemaphoreTake()</code> 立即返回 <code>errQUEUE_EMPTY</code>（<code>xSemaphoreTake()</code> 表现为失败）；H 不进入等待列表，也不会触发优先级继承。若 mutex 计数大于 0，则仍可立即取得 mutex。若 H 忙循环立即重试，它可能一直占着高优先级 CPU，让 L 没机会运行并释放锁；零等待 try-lock 失败后应安排退避或阻塞。</div>
+            </div>
+            <ol>
+              <li><b>Mutex 记录持有者。</b>FreeRTOS 把 mutex 实现为特殊队列；<code>Queue_t</code> 通过 <code>uxQueueType == queueQUEUE_IS_MUTEX</code> 区分它，并在 <code>xMutexHolder</code> 中记录 owner。</li>
+              <li><b>等待者即将阻塞时触发继承。</b><code>xSemaphoreTake()</code> 进入 <code>xQueueSemaphoreTake()</code>；确认 mutex 仍被占用（计数为 0）、等待时间未到后，先调用 <code>xTaskPriorityInherit(xMutexHolder)</code>，再把当前任务挂到 mutex 的接收等待列表。仅 mutex 路径会做这一步。</li>
+              <li><b>提高 owner 的有效优先级并重排 Ready list。</b><code>tasks.c</code> 比较 owner 的 <code>uxPriority</code> 和等待者的当前优先级；owner 较低时，就把 <code>uxPriority</code> 提到等待者级别。若 owner 在 Ready list，内核先从旧优先级链表移除，再加入新优先级链表；调度器因此能先选 L 而不是 M。<code>uxBasePriority</code> 保留任务原始优先级，所以这是临时提升。</li>
+              <li><b>Give 时撤销继承并唤醒等待者。</b>释放 mutex 的队列路径调用 <code>xTaskPriorityDisinherit()</code>、清空 holder，再让等待任务变为 Ready。持有者已不再持有任何 mutex 时，其有效优先级恢复为基础优先级。</li>
+            </ol>
+            <p><b>实现边界：</b>这是 FreeRTOS 的简化优先级继承。若 owner 同时持有多把 mutex，普通 Give 路径会等到它释放最后一把才恢复基础优先级；等待超时路径会按仍在等待的最高优先级做调整，但源码也限制了多锁情形下的撤销。不要把它当成完整的优先级天花板协议或死锁检测器。</p>
+          </div>
+          <div class="source-links"><a href="#mutexLab">打开互斥锁 18 步源码演示 →</a><a href="../../FreeRTOS/FreeRTOS-Kernel/queue.c">queue.c · mutex Take / Give 路径</a><a href="../../FreeRTOS/FreeRTOS-Kernel/tasks.c">tasks.c · xTaskPriorityInherit / Disinherit</a></div>
+        </article>
       </section>
 
       <section class="chapter" id="lifecycle">
@@ -441,6 +674,104 @@
 }</pre><p class="muted">示例中的 20 ms 是演示应用选择的周期，不是 FreeRTOS 默认值；可用精度受 tick 配置与目标硬件限制。</p></div>
           <div class="card"><h3>栈深参数的单位</h3><p>任务创建 API 的栈深参数以 <code>StackType_t</code> 元素为单位。栈缓冲区的字节数等于元素个数乘以目标构建中的 <code>sizeof(StackType_t)</code>；栈方向、对齐和初始上下文由目标 port 决定，栈深应按目标工程验证。</p><div class="source-links"><a href="../../FreeRTOS/FreeRTOS-Kernel/include/task.h">task.h · xTaskCreate 文档</a><a href="../../FreeRTOS/FreeRTOS-Kernel/portable/ARMv8M/secure/heap/secure_heap.c">portable/ · 架构相关栈初始化与 port 实现</a></div></div>
         </div>
+        <div id="task-construction" style="margin-top:22px;scroll-margin-top:90px">
+          <h3>静态 / 动态创建任务，以及 TCB 里保存了什么</h3>
+          <p>两种 API 最终都会初始化同类 TCB、准备初始栈帧，并把任务加入 Ready 链表；核心区别是 TCB 和任务栈由谁提供、何时分配和回收。</p>
+          <div class="table-wrap"><table><thead><tr><th>对比</th><th><code>xTaskCreate()</code> 动态创建</th><th><code>xTaskCreateStatic()</code> 静态创建</th></tr></thead><tbody>
+            <tr><td>TCB 与栈内存</td><td>内核从 FreeRTOS heap 分配任务控制块和栈；创建可能因可用堆不足而失败。</td><td>应用提供 <code>StaticTask_t</code> 和 <code>StackType_t</code> 数组；该任务的 TCB 与栈不经 heap 分配。</td></tr>
+            <tr><td>接口返回</td><td>返回 <code>pdPASS</code> / 失败状态；可通过最后一个参数接收句柄。</td><td>返回任务句柄；缓冲区参数无效时返回 <code>NULL</code>。</td></tr>
+            <tr><td>生命周期</td><td>删除后由内核的任务清理路径释放动态内存。</td><td>缓冲区由应用持有，必须覆盖整个任务生命周期；删除任务不会替应用释放这块静态存储。</td></tr>
+            <tr><td>配置与适用</td><td>需要 <code>configSUPPORT_DYNAMIC_ALLOCATION</code>；适合运行时数量灵活的任务。</td><td>需要 <code>configSUPPORT_STATIC_ALLOCATION</code>；适合内存布局预先规划、避免创建时依赖 heap 的任务。</td></tr>
+          </tbody></table></div>
+          <div class="note" style="margin-top:12px"><b>两种方式共用同一套调度机制。</b>动态 / 静态说的是内存来源，不决定优先级和任务行为。两者的 <code>uxStackDepth</code> 都以 <code>StackType_t</code> 元素数计，不是字节数；如果工程同时启用两项配置，两种创建方式可以并用。</div>
+          <div class="grid two" style="margin-top:12px">
+            <article class="card" id="tcb-structure"><h3>TCB：内核管理一个任务的控制块</h3><p><code>TCB_t</code>（内部结构名 <code>tskTaskControlBlock</code>）把任务栈指针、调度状态和配置相关信息连在一起。它不是任务的完整 CPU 现场本身；大部分被保存的寄存器现场在任务栈中，port 通过 TCB 找到它。</p><ul><li><code>pxTopOfStack</code>：保存的栈顶位置，是 TCB 首成员，供 port 上下文切换代码按约定访问。</li><li><code>pxStack</code> / 可选 <code>pxEndOfStack</code>：栈区域边界信息，方向与边界规则依 port 和配置。</li><li><code>xStateListItem</code>、<code>xEventListItem</code>：分别连接任务状态链表和对象事件等待链表。</li><li><code>uxPriority</code>、<code>pcTaskName</code>：当前有效优先级与调试名称；启用 mutex 时还含基础优先级、持锁计数等字段。</li></ul></article>
+            <article class="card"><h3>TCB 布局不是固定 ABI</h3><p>MPU、SMP 核心亲和性、trace、TLS、运行时统计、通知、栈检查和 allocator 配置都会增减字段。不要用另一种配置或 port 的 TCB 字节数推算当前工程；应用通常通过句柄和 API 操作任务，不直接读写内部字段。</p><p><b>SMP 核心亲和性：</b>这是一个位掩码，指定任务允许在哪些 CPU 核上运行。双核系统中，<code>0b01</code> 仅允许 Core 0，<code>0b10</code> 仅允许 Core 1，<code>0b11</code> 允许调度器任选一个核；它限制任务的可运行范围，不改变优先级，也不表示同一任务会同时运行在两个核上。配置 <code>configNUMBER_OF_CORES &gt; 1</code> 且启用 <code>configUSE_CORE_AFFINITY</code> 时，TCB 中会有 <code>uxCoreAffinityMask</code>；可通过 <code>vTaskCoreAffinitySet()</code> 设置。</p><p><code>StaticTask_t</code> 是供静态创建使用的存储类型，大小要与当前构建中的内部 TCB 匹配；开启断言的构建会在相关路径进行一致性检查。</p><div class="source-links"><a href="../../FreeRTOS/FreeRTOS-Kernel/tasks.c">tasks.c · TCB_t 定义 / 初始化</a><a href="../../FreeRTOS/FreeRTOS-Kernel/include/task.h">task.h · StaticTask_t 与创建 API</a><a href="../../FreeRTOS/FreeRTOS-Kernel/portable/GCC/ARM_CM4F/port.c">port.c · pxTopOfStack 的上下文路径</a></div></article>
+          </div>
+          <div class="grid two" style="margin-top:12px">
+            <div class="card"><h3>静态创建：应用提供 TCB 和栈</h3><pre>static StaticTask_t xWorkerTCB;
+static StackType_t xWorkerStack[ 512 ];
+
+TaskHandle_t xWorker = xTaskCreateStatic(
+    vWorkerTask, "Worker", 512, NULL, 2,
+    xWorkerStack, &amp;xWorkerTCB );</pre><p>TCB 存储和栈数组由应用提供，具有静态生命周期；此任务创建不从 FreeRTOS heap 分配这两块内存。</p></div>
+            <div class="card"><h3>动态创建：配置总 heap，再设置单任务栈深</h3><pre>/* FreeRTOSConfig.h · 以 heap_4 为例 */
+#define configSUPPORT_DYNAMIC_ALLOCATION    1
+#define configTOTAL_HEAP_SIZE               ( ( size_t ) ( 20U * 1024U ) )
+
+/* 应用代码：给这个任务申请 512 个 StackType_t */
+const configSTACK_DEPTH_TYPE uxWorkerStackDepth = 512;
+TaskHandle_t xWorker = NULL;
+
+BaseType_t xResult = xTaskCreate(
+    vWorkerTask, "Worker", uxWorkerStackDepth, NULL, 2,
+    &amp;xWorker );
+
+if( xResult != pdPASS )
+{
+    /* 创建失败：执行错误处理 */
+}</pre><p><code>uxWorkerStackDepth</code> 是单个任务的栈深，单位为 <code>StackType_t</code> 元素；内核按“深度 × <code>sizeof(StackType_t)</code>”从 heap 申请栈空间，并另外申请 TCB。<code>configTOTAL_HEAP_SIZE</code> 是 heap_1 / heap_2 / heap_4 使用的总内存池大小，供任务栈、TCB 和其他动态对象共同使用，不是单个任务的栈大小；heap_5 改用内存区域配置，heap_3 使用 C 库的 <code>malloc</code>。堆不足时检查 <code>xTaskCreate()</code> 是否返回 <code>pdPASS</code>。</p></div>
+          </div>
+        </div>
+        <article class="card" id="task-selection-flow" style="margin-top:22px;scroll-margin-top:90px">
+          <h3>调度器怎样找出下一个要运行的任务？</h3>
+          <p><b>每个优先级都有一条 Ready 链表。</b>内核的 <code>pxReadyTasksLists[configMAX_PRIORITIES]</code> 是一个 <code>List_t</code> 数组，数组下标就是优先级；可用下标为 <code>0</code> 到 <code>configMAX_PRIORITIES - 1</code>，数值越大表示优先级越高。每个任务的 <code>xStateListItem</code> 挂在与它当前有效优先级 <code>uxPriority</code> 对应的链表里。单核下，正在运行的任务也仍留在自己的 Ready 链表中。</p>
+          <p>可以把它想成“先选优先级队列，再选队列中的任务”。同一条 Ready 链表里的任务优先级相同；阻塞或挂起的任务会离开 Ready 链表，分别进入延时、事件等待或挂起相关链表，因此不会成为本轮候选。</p>
+          <ol>
+            <li><b>到达调度点。</b>当前任务阻塞、调用 yield，或 tick / 唤醒路径请求切换时，port 会在合适的边界进入上下文切换流程；并不是每条指令或每个 tick 都必然重新选任务。</li>
+            <li><b>找最高的非空 Ready 链表。</b>通用单核实现从 <code>uxTopReadyPriority</code> 开始，向低优先级检查并跳过空链表；启用 port 优化选择时，则调用 <code>portGET_HIGHEST_PRIORITY</code>，由具体 port 用位图或相应指令快速定位。两种路径的目标相同：找到最高的非空优先级。</li>
+            <li><b>在该优先级链表中取一个任务。</b><code>listGET_OWNER_OF_NEXT_ENTRY()</code> 推进该链表的 <code>pxIndex</code> 游标，并返回链表项 owner，也就是对应的 TCB。若同级有多个 Ready 任务，游标会让后续选择轮到下一个；时间片配置影响 tick 是否触发这种同级轮转，阻塞、yield 等调度点也可能推进选择。<b>这里只移动游标，不会因为任务被选中就把它的链表节点摘下再插到末尾。</b>任务阻塞、挂起或删除时才会离开 Ready 链表；事件或超时唤醒后重新就绪时，再加入相应优先级的 Ready 链表。</li>
+            <li><b>保存旧现场、更新当前 TCB、恢复新现场。</b>以本页引用的 Cortex-M4F port 为例，PendSV 先把当前任务寄存器现场压入它自己的栈并更新其 <code>pxTopOfStack</code>，再调用 <code>vTaskSwitchContext()</code> 选择任务并更新 <code>pxCurrentTCB</code>，最后从新 TCB 的 <code>pxTopOfStack</code> 恢复现场。更新 <code>pxCurrentTCB</code> 只是选择完成；port 恢复并异常返回后，新任务才继续执行。</li>
+          </ol>
+          <p class="muted">以上是单核 FreeRTOS 的概念路径。SMP 还需考虑任务核亲和性和各核运行状态，不能简单地把单核“全局取最高优先级”流程套到每个核。</p>
+          <div class="source-links"><a href="../../FreeRTOS/FreeRTOS-Kernel/tasks.c">tasks.c · Ready 链表 / taskSELECT_HIGHEST_PRIORITY_TASK / vTaskSwitchContext</a><a href="../../FreeRTOS/FreeRTOS-Kernel/include/list.h">list.h · List_t / listGET_OWNER_OF_NEXT_ENTRY</a><a href="../../FreeRTOS/FreeRTOS-Kernel/portable/GCC/ARM_CM4F/port.c">ARM_CM4F port · PendSV 保存 / 恢复上下文</a></div>
+        </article>
+        <div class="list-map" id="list-structures" style="margin-top:22px;scroll-margin-top:90px">
+          <h3>内核链表：就绪、阻塞与定时器如何排队</h3>
+          <p>FreeRTOS 用 <code>List_t</code> / <code>ListItem_t</code> 维护任务状态、事件等待和定时器。链表的用途和排序规则不同：调度器只从 Ready 链表选择运行任务；其他链表记录等待条件、到期时间或待清理状态，不会直接与 Ready 任务竞争 CPU。</p>
+          <div class="card" style="padding:14px;margin-bottom:12px"><b>先分清 TCB 的两个链表节点：</b><code>xStateListItem</code> 表示任务当前的调度状态（Ready、延时等待、Suspended 等）；<code>xEventListItem</code> 表示任务正在等待哪个事件对象。有限时间等待对象时，一个任务通常同时在“对象事件等待链表”和“延时状态链表”中，各由一个节点代表；无限期等待对象时，状态节点可在挂起链表，事件节点仍在对象等待链表。</div>
+          <div class="note list-map-detail">
+            <h4>调度器怎样从这些链表中选任务？</h4>
+            <p>以下按单核路径说明：其他状态链表不会和 Ready 任务一起竞争 CPU，调度器只从 <code>pxReadyTasksLists[]</code> 选择。</p>
+            <ol>
+              <li><b>先选最高的非空优先级。</b>通用实现从 <code>uxTopReadyPriority</code> 向低优先级检查；port 优化实现用优先级追踪信息（常见为位图）定位。</li>
+              <li><b>再选该优先级中的任务。</b><code>listGET_OWNER_OF_NEXT_ENTRY()</code> 推进 Ready 链表的 <code>pxIndex</code>，读取下一个节点 owner（TCB），更新 <code>pxCurrentTCB</code>。同优先级轮转靠游标完成；单核选择时节点仍留在 Ready 链表中。</li>
+              <li><b>最后切换 CPU 现场。</b>port 保存旧任务现场；选择逻辑更新 <code>pxCurrentTCB</code> 后，port 恢复新任务现场，新任务才继续执行。</li>
+            </ol>
+            <p class="list-map-scope">任务解除等待进入 Ready，不代表它立刻运行。SMP 还要考虑核亲和性和各核运行状态；这里的步骤描述单核选择。</p>
+            <p class="list-map-path"><b>路径</b><code>等待条件满足 → 进入 Ready → 最高非空优先级 → 同级游标 → pxCurrentTCB → 恢复现场</code></p>
+          </div>
+          <div class="note list-map-detail">
+            <h4>从等待链表转到 Ready：先选任务，再摘节点、插入就绪链表</h4>
+            <p>链表宏只操作具体的 <code>ListItem_t</code>，不会自动把整个任务从一条链表搬到另一条。先由唤醒来源按自己的规则确定 TCB；各来源的挑选规则见下表。</p>
+            <ol>
+              <li><b>摘除对应等待节点。</b>任务可能有状态节点 <code>xStateListItem</code> 和事件节点 <code>xEventListItem</code>，两个节点的处理顺序取决于唤醒路径：
+                <ul>
+                  <li>队列 / 信号量事件（调度器正常运行时）：<code>xTaskRemoveFromEventList()</code> 先从对象等待链表摘事件节点，再摘状态节点；调度器挂起时的分支见第 3 步。</li>
+                  <li>Tick 超时：<code>xTaskIncrementTick()</code> 先摘延时链表中的状态节点，再摘仍在对象等待链表中的事件节点。</li>
+                </ul>
+              </li>
+              <li><b>把状态节点挂到 Ready。</b><code>prvAddTaskToReadyList(pxTCB)</code> 按任务当前有效优先级更新优先级记录，并将 <code>xStateListItem</code> 插入 <code>pxReadyTasksLists[uxPriority]</code>。</li>
+              <li><b>按路径处理例外。</b>调度器挂起时，队列 / 信号量唤醒先把事件节点转挂到 <code>xPendingReadyList</code>，状态节点留在原处；<code>xTaskResumeAll()</code> 恢复时再摘除两者并加入 Ready。事件组由 <code>vTaskRemoveFromUnorderedEventList()</code> 按位条件扫描，可在调度器挂起期间直接移除两节点并加入 Ready。</li>
+            </ol>
+            <p class="list-map-scope">任务加入 Ready 只表示具备运行资格；是否马上切换，还取决于优先级、抢占配置和调度边界。</p>
+          </div>
+          <div class="table-wrap"><table><thead><tr><th>链表</th><th>组织的对象与顺序</th><th>谁按什么规则摘除 / 摘除后去哪</th></tr></thead><tbody>
+            <tr><td><code>pxReadyTasksLists[p]</code><br>就绪链表</td><td>每个可用优先级 <code>p</code> 一条链表；任务的 <code>xStateListItem</code> 挂在当前有效优先级对应的链表。单核当前 Running 任务也留在 Ready 链表中。单核同级选择推进本链表的 <code>pxIndex</code>，不搬动任务节点。</td><td><code>prvAddTaskToReadyList()</code> 把新建或解除等待的任务插入对应优先级链表；任务阻塞、挂起或删除时由相应 API 摘除。调度器只在 Ready 链表中选：最高非空优先级优先，同级由游标轮转。</td></tr>
+            <tr><td><code>pxDelayedTaskList</code> / <code>pxOverflowDelayedTaskList</code><br>延时链表</td><td>存放有限时间等待任务的 <code>xStateListItem</code>，按预计唤醒 tick 升序排列。两条链表分别容纳当前 tick 周期和计数回绕后的任务，回绕时交换角色；相同唤醒 tick 按插入先后排列。</td><td><code>xTaskIncrementTick()</code> 从当前延时链表队首检查；到期任务按唤醒时间顺序逐个摘除 <code>xStateListItem</code>，若还在对象事件链表也摘除 <code>xEventListItem</code>，再加入 Ready。一次 Tick 可唤醒多个已到期任务；此顺序不是 CPU 优先级顺序。</td></tr>
+            <tr><td>对象事件等待链表<br>队列：<code>xTasksWaitingToSend</code> / <code>xTasksWaitingToReceive</code><br>事件组：<code>xTasksWaitingForBits</code></td><td>每个队列、信号量或事件组对象各自维护等待链表，链接任务的 <code>xEventListItem</code>。队列 / 信号量通常按任务当前有效优先级排序，同优先级按等待插入顺序；事件组用无序等待链表，按位条件扫描，满足条件的任务都可能被解除等待。</td><td>队列 / 信号量的 <code>xTaskRemoveFromEventList()</code> 从队首摘除最高优先级等待者的事件节点，再摘除其状态节点并加入 Ready。若该路径遇到调度器挂起，事件节点先转入 Pending Ready，状态节点暂留原处。事件组则由 <code>vTaskRemoveFromUnorderedEventList()</code> 摘除满足条件任务的两个节点并直接加入 Ready。</td></tr>
+            <tr><td><code>xPendingReadyList</code><br>待转就绪链表</td><td>调度器挂起期间，暂存已被事件唤醒但还不能正式转入 Ready 的任务；事件节点 <code>xEventListItem</code> 在此按 FIFO 顺序排队，状态节点 <code>xStateListItem</code> 仍留在原等待状态链表。</td><td>调度器恢复时，<code>xTaskResumeAll()</code> 从队首按 FIFO 排空：先摘除 Pending 的事件节点，再摘除原状态节点，最后加入对应优先级的 Ready。Pending 的先后只决定处理次序，不按任务优先级排序；最终运行选择仍看 Ready。</td></tr>
+            <tr><td><code>xSuspendedTaskList</code><br>挂起任务链表</td><td><code>xStateListItem</code> 用于显式挂起任务，也用于配置支持下的无限期等待状态；无限期等待对象时，<code>xEventListItem</code> 仍连接对象事件链表。</td><td>显式挂起由 <code>vTaskResume(handle)</code> 按传入句柄找到具体任务并摘除状态节点，直接加入 Ready，不按挂起链表优先级或先后挑选。无限期等待对象则由对象事件路径按该对象的规则唤醒。相关路径受 <code>INCLUDE_vTaskSuspend</code> 控制。</td></tr>
+            <tr><td><code>xTasksWaitingTermination</code><br>待清理删除任务链表</td><td>保存仍在运行或正在让出的已删除任务，不能当场释放的 TCB / 栈按入队顺序等待清理；这不是等待运行的队列。</td><td>Idle task 的 <code>prvCheckTasksWaitingTermination()</code> 从队首摘除并释放资源；任务不会从这里转回 Ready。相关路径受 <code>INCLUDE_vTaskDelete</code> 控制。</td></tr>
+          </tbody></table></div>
+          <div class="note" style="margin-top:12px"><b>延时链表与时间片不是一回事。</b>这里按“预计唤醒 tick”升序，是为了先检查最早到期的任务；即使关闭 <code>configUSE_TIME_SLICING</code>，<code>vTaskDelay()</code> 和带超时的阻塞仍会使用延时链表，tick 到期处理也照常把任务转入 Ready。<code>configUSE_TIME_SLICING</code> 控制的是抢占式调度下，同优先级 Ready 任务是否因 tick 轮转。延时链表本身仍由内核初始化；没有有限时间等待任务时它可以为空，当前活动延时链表为空时，溢出延时链表仍可能有任务。</div>
+          <div class="note" style="margin-top:12px"><b>例子：任务带超时等待队列接收。</b><code>xEventListItem</code> 排在该队列的接收等待链表，<code>xStateListItem</code> 同时排在延时链表。队列先收到数据时按事件路径唤醒；若超时 tick 先到，则按延时路径唤醒。两条路径都会清除对应等待关系并把任务带回 Ready，之后才由优先级选择器决定它何时运行。</div>
+          <div class="grid two" style="margin-top:12px">
+            <div class="card"><h3>软件定时器活动链表</h3><p>每个软件定时器的 <code>xTimerListItem</code> 按到期 tick 插入 <code>xActiveTimerList1</code> 或 <code>xActiveTimerList2</code>。两条列表跟踪 tick 回绕前后；共享的 Timer Service Task 检查最近的到期项、执行回调，并重装自动重载定时器。</p></div>
+            <div class="card"><h3>Timer command queue 不是定时器链表</h3><p><code>xTimerQueue</code> 是命令队列：应用发出的 start / stop / reset 命令先排队，由 Timer Service Task 取出处理，再把定时器插入或移出活动链表。到期时间保存在活动链表项中，命令则保存在队列里。</p></div>
+          </div>
+          <div class="source-links"><a href="../../FreeRTOS/FreeRTOS-Kernel/include/list.h">list.h · List_t / ListItem_t</a><a href="../../FreeRTOS/FreeRTOS-Kernel/list.c">list.c · 排序插入 / 摘除 / 游标</a><a href="../../FreeRTOS/FreeRTOS-Kernel/tasks.c">tasks.c · Tick / Event / Resume / Ready</a><a href="../../FreeRTOS/FreeRTOS-Kernel/queue.c">queue.c · Queue_t 事件等待链表</a><a href="../../FreeRTOS/FreeRTOS-Kernel/event_groups.c">event_groups.c · 按条件解除多个等待者</a><a href="../../FreeRTOS/FreeRTOS-Kernel/timers.c">timers.c · Active timer lists / Timer Service Task</a></div>
+        </div>
       </section>
 
       <section class="chapter" id="primitives">
@@ -453,7 +784,7 @@
           <article class="card"><h3>事件组 Event Group：一组可组合的条件位</h3><p>任务可等待“任意一个位”或“全部指定位”成立，并选择满足后清除等待位。事件组维护当前位图和等待任务链表；设置位时逐个检查等待条件。ISR 设置位会把回调请求排入 timer command queue，由 Timer Service Task 执行位更新和等待者检查。</p><p><b>适用：</b>等待多个模块初始化完成、多个异步条件的组合、多个任务观察一组状态。它表达条件集合，不适合承载大量数据。</p><p><b>常用：</b><code>xEventGroupSetBits</code>、<code>xEventGroupWaitBits</code>、<code>xEventGroupClearBits</code>、<code>xEventGroupSetBitsFromISR</code>。</p><div class="source-links"><a href="../../FreeRTOS/FreeRTOS-Kernel/event_groups.c">event_groups.c · wait / deferred ISR callback</a><a href="../../FreeRTOS/FreeRTOS-Kernel/include/event_groups.h">event_groups.h · API 说明</a><a href="../../FreeRTOS/FreeRTOS-Kernel/timers.c">timers.c · pended function call</a></div></article>
           <article class="card"><h3>Stream / Message Buffer：单写者与单读者通道</h3><p>Stream Buffer 用环形字节缓冲传连续字节；空间不足时可部分写入，读取也按可用字节数返回。Message Buffer 在数据前保存消息长度，只有空间足够容纳长度头和整条消息时才写入；接收缓冲太小时不会消费该消息。两者要求单写者、单读者；底层长度为 <code>xLength</code> 的环形区最多报告 <code>xLength - 1</code> 字节可用。</p><p><b>适用：</b>串口字节流、音频/传感器数据流，或一对一传递变长消息。多写者/多读者要在应用层串行化，或改用队列。</p><p><b>常用：</b><code>xStreamBufferSend/Receive</code>、<code>xMessageBufferSend/Receive</code>、触发阈值配置。</p><div class="source-links"><a href="../../FreeRTOS/FreeRTOS-Kernel/stream_buffer.c">stream_buffer.c · 写入、长度头、接收</a><a href="../../FreeRTOS/FreeRTOS-Kernel/include/stream_buffer.h">stream_buffer.h · API 约束与触发级别</a></div></article>
           <article class="card"><h3>软件定时器：把到期工作交给 Timer Service Task</h3><p>软件 timer 的 start/stop/reset 命令进入 timer command queue；timer service task 处理命令并在到期时运行 callback。回调运行在服务任务上下文，应保持短小且非阻塞；耗时工作交由其他任务处理。</p><p><b>适用：</b>周期状态刷新、超时检查、延后执行轻量工作。若回调需要耗时处理，就在回调里通知工作任务。</p><p><b>常用：</b><code>xTimerCreate</code>、<code>xTimerStart</code>、<code>xTimerStop</code>；服务任务优先级/栈/命令队列长度来自配置。</p><div class="source-links"><a href="../../FreeRTOS/FreeRTOS-Kernel/timers.c">timers.c · Timer_t / prvTimerTask</a><a href="../../FreeRTOS/FreeRTOS-Kernel/include/timers.h">timers.h · 配置和 API</a></div></article>
-          <article class="card"><h3>链表 List：内核内部的状态索引</h3><p>任务状态链表项所在的 list 表示它当前属于哪个状态队列；事件链表项用于等待某个队列、信号量或事件条件。ready list 按优先级分组；延时任务按唤醒 tick 有序插入，因此 tick 只需从头检查到第一个未到期任务。</p><p><b>适用：</b>理解 Ready / Blocked 转换、等待顺序和同级轮转时读它。它是内核内部数据结构，应用通常不直接操作。</p><div class="source-links"><a href="../../FreeRTOS/FreeRTOS-Kernel/list.c">list.c · 有序插入/游标前进</a><a href="../../FreeRTOS/FreeRTOS-Kernel/include/list.h">list.h · List_t / ListItem_t</a></div></article>
+          <article class="card"><h3>链表 List：内核内部的状态索引</h3><p>任务状态链表项所在的 list 表示它当前属于哪个状态队列；事件链表项用于等待某个队列、信号量或事件条件。ready list 按优先级分组；延时任务按唤醒 tick 有序插入，因此 tick 只需从头检查到第一个未到期任务。</p><p><b>适用：</b>理解 Ready / Blocked 转换、等待顺序和同级轮转时读它。它是内核内部数据结构，应用通常不直接操作。</p><div class="source-links"><a href="#list-structures">查看本页链表地图：Ready / Delayed / Event / Timer</a><a href="../../FreeRTOS/FreeRTOS-Kernel/list.c">list.c · 有序插入/游标前进</a><a href="../../FreeRTOS/FreeRTOS-Kernel/include/list.h">list.h · List_t / ListItem_t</a></div></article>
           <article class="card"><h3>Queue Set：同时等待多个队列或信号量</h3><p>把多个成员加入 Queue Set 后，接收任务等待 set；成员变为可读/可 Take 时，set 中收到的是“哪个成员就绪”的句柄。任务必须先调用 <code>xQueueSelectFromSet</code> 选出成员，再从该队列接收或对该信号量 Take。</p><p><b>适用：</b>确实需要一个任务等待多个异构对象，且无法用单一队列/通知重构时。它属于较少使用的高级能力。</p><p><b>限制：</b>set 容量要覆盖成员可能积累的事件；源码明确提醒等待含 mutex 的 set 不会让 mutex owner 继承等待者优先级。</p><div class="source-links"><a href="../../FreeRTOS/FreeRTOS-Kernel/queue.c">queue.c · queue set container / select</a><a href="../../FreeRTOS/FreeRTOS-Kernel/include/queue.h">queue.h · Queue Set 约束</a></div></article>
           <article class="card"><h3>Co-routine：可选协程执行模型</h3><p>源码在 <code>croutine.c</code> 与 <code>croutine.h</code> 中保留了协程实现。协程与 task 使用不同的执行和调度路径；工程启用 <code>configUSE_CO_ROUTINES</code> 时，应结合协程 API 与调度代码阅读。</p><p><b>本页范围：</b>主线围绕 FreeRTOS task、独立任务栈与阻塞式 API 展开。</p><div class="source-links"><a href="../../FreeRTOS/FreeRTOS-Kernel/croutine.c">croutine.c</a><a href="../../FreeRTOS/FreeRTOS-Kernel/include/croutine.h">croutine.h</a></div></article>
         </div>
