@@ -5,6 +5,121 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#0b1016">
   <title>FreeRTOS 源码导览｜从调度到联网组件</title>
+  <script>
+    // 文档内的仓库文件链接共用此根路径；移动 index.html 时只需调整这里。
+    const DOC_REPOSITORY_ROOT = '../';
+    // 通过 HTTP 打开文档时，浏览器无法推导本机工作区路径；需要时在此填写仓库绝对路径。
+    const DOC_VSCODE_WORKSPACE_PATH = '';
+    const DOC_VSCODE_FALLBACK_DELAY_MS = 1400;
+    (() => {
+      const OLD_REPOSITORY_PREFIX = '../../';
+      const rewriteRepositoryLink = (link) => {
+        const href = link.getAttribute('href');
+        if (href && href.startsWith(OLD_REPOSITORY_PREFIX)) {
+          link.setAttribute('href', DOC_REPOSITORY_ROOT + href.slice(OLD_REPOSITORY_PREFIX.length));
+        }
+      };
+      const scanRepositoryLinks = (node) => {
+        if (node.nodeType === Node.ELEMENT_NODE && node.matches('a[href]')) {
+          rewriteRepositoryLink(node);
+        }
+        node.querySelectorAll?.('a[href]').forEach(rewriteRepositoryLink);
+      };
+      const observer = new MutationObserver((records) => {
+        records.forEach((record) => {
+          if (record.type === 'attributes') {
+            rewriteRepositoryLink(record.target);
+          } else {
+            record.addedNodes.forEach(scanRepositoryLinks);
+          }
+        });
+      });
+      observer.observe(document.documentElement, {
+        subtree: true,
+        childList: true,
+        attributes: true,
+        attributeFilter: ['href']
+      });
+      document.addEventListener('DOMContentLoaded', () => scanRepositoryLinks(document));
+    })();
+    (() => {
+      const sourceFilePattern = /\.(?:c|h|s|S|cc|cpp|cxx|hh|hpp|hxx|md|rst|txt|json|ya?ml|cmake|mk|ld|py|sh|inc|in)$/i;
+      const encodePath = path => path.replace(/\\/g, '/').split('/').map((part, index, parts) => {
+        const driveLetter = /^[A-Za-z]:$/.test(part) && (index === 0 || index === 1 && parts[0] === '');
+        return driveLetter ? part : encodeURIComponent(part);
+      }).join('/');
+      const toVscodeUri = path => {
+        const encodedPath = encodePath(path);
+        return `vscode://file${encodedPath.startsWith('/') ? '' : '/'}${encodedPath}`;
+      };
+      const findSourceTarget = link => {
+        let sourceUrl;
+        try { sourceUrl = new URL(link.href); } catch (_) { return null; }
+        if (!sourceFilePattern.test(sourceUrl.pathname)) return null;
+        const repositoryUrl = new URL(DOC_REPOSITORY_ROOT, document.baseURI);
+
+        if (sourceUrl.protocol === 'file:') {
+          if (!sourceUrl.pathname.startsWith(repositoryUrl.pathname)) return null;
+          return { sourceUrl, vscodeUri: toVscodeUri(decodeURIComponent(sourceUrl.pathname)) };
+        }
+        if (!DOC_VSCODE_WORKSPACE_PATH || sourceUrl.origin !== location.origin) return null;
+
+        if (sourceUrl.pathname.startsWith(repositoryUrl.pathname) === false) return null;
+        const relativePath = decodeURIComponent(sourceUrl.pathname.slice(repositoryUrl.pathname.length));
+        const workspacePath = `${DOC_VSCODE_WORKSPACE_PATH.replace(/[\\/]+$/, '')}/${relativePath}`;
+        return { sourceUrl, vscodeUri: toVscodeUri(workspacePath) };
+      };
+
+      document.addEventListener('click', event => {
+        if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+        const link = event.target.closest?.('a[href]');
+        if (!link || link.hasAttribute('download')) return;
+        const target = findSourceTarget(link);
+        if (!target) return;
+
+        event.preventDefault();
+        let editorWasOpened = false;
+        let fallbackTimer;
+        let launchFrame;
+        const cleanup = () => {
+          window.removeEventListener('blur', markEditorHandoff);
+          document.removeEventListener('visibilitychange', onVisibilityChange);
+          launchFrame?.remove();
+        };
+        const markEditorHandoff = () => {
+          editorWasOpened = true;
+          clearTimeout(fallbackTimer);
+          cleanup();
+        };
+        const onVisibilityChange = () => {
+          if (document.visibilityState === 'hidden') markEditorHandoff();
+        };
+
+        window.addEventListener('blur', markEditorHandoff, { once: true });
+        document.addEventListener('visibilitychange', onVisibilityChange);
+        fallbackTimer = setTimeout(() => {
+          cleanup();
+          if (!editorWasOpened && document.visibilityState !== 'hidden' && document.hasFocus()) {
+            // 自定义协议没有交给 VS Code 时，回到原源码 URL 由浏览器显示。
+            location.assign(target.sourceUrl.href);
+          }
+        }, DOC_VSCODE_FALLBACK_DELAY_MS);
+
+        try {
+          // 在隐藏 frame 中尝试自定义协议，避免协议未注册时把文档页导航到错误页面。
+          launchFrame = document.createElement('iframe');
+          launchFrame.hidden = true;
+          launchFrame.setAttribute('aria-hidden', 'true');
+          document.body.appendChild(launchFrame);
+          launchFrame.src = target.vscodeUri;
+        } catch (_) {
+          clearTimeout(fallbackTimer);
+          cleanup();
+          location.assign(target.sourceUrl.href);
+        }
+      }, true);
+    })();
+  </script>
   <style>
     .cm-context-lab{padding:22px;background:radial-gradient(ellipse at 48% 0%,#17324455,transparent 60%),#101922}
     .cm-context-head{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:14px}.cm-context-head h3{margin:4px 0 6px;font-size:21px}.cm-context-head p{max-width:900px;margin:0;color:#aabcc5;font-size:13px;line-height:1.7}.cm-context-scope{flex:none;padding:8px 11px;border:1px solid #3c685e;border-radius:10px;background:#142820;color:#a8f0d1;font:11px/1.5 var(--mono)}
@@ -57,6 +172,14 @@
     @media(prefers-reduced-motion:reduce){.queue-story-detail,.timer-entry,.led-bulb.on,.sem-actor.active,.token-slot.available{animation:none!important}}
   </style>
   <style>.task-chip.selected{outline:1px dashed #f0cc7a;outline-offset:2px}.task-chip.selected:not(.current){border-color:#b49655;background:linear-gradient(120deg,#37301d,#20251f)}.queue-story-detail ol{margin:8px 0 0;padding-left:19px;color:#b0c1c9;font-size:10px;line-height:1.6}.queue-story-detail li{margin:3px 0;padding-left:2px}.queue-slot.read-cursor:after{content:"READ NEXT"}</style>
+  <style>
+    .wait-explainer{margin:9px 1px 0;color:#8fa4ae;font-size:9px;line-height:1.6}
+    .wait-explainer code{font-size:9px}
+    .wait-chip.suspended{background:#1d2b3b;color:#b9d5f4}
+    .wait-chip.termination{background:#382329;color:#f0b7b7}
+    .timeline.long{grid-template-columns:none!important;grid-auto-flow:column;grid-auto-columns:14px;overflow-x:auto;scrollbar-color:#355365 #0c141b;scrollbar-width:thin}
+    @media(max-width:720px){.wait-explainer{font-size:9px}.timeline.long{grid-auto-columns:12px}}
+  </style>
   <style>
     .timer-lab-layout{grid-template-columns:minmax(0,1.32fr) minmax(300px,.82fr);align-items:start}
     .timer-stage-info{position:sticky;top:16px;border-color:#35505d;background:linear-gradient(155deg,#15232d,#101820);box-shadow:0 12px 35px #0003}
@@ -350,12 +473,23 @@
     .kernel-sched-step h4{margin:0;color:#dce9ed;font-size:12px;line-height:1.45}
     .kernel-sched-step p{margin:8px 0 0;color:#aabac2;font-size:11px;line-height:1.65}
     .kernel-sched-step p+p{margin-top:6px}
+    .kernel-sched-step ul{display:grid;gap:5px;margin:7px 0 0;padding-left:17px;color:#aabac2;font-size:10px;line-height:1.6}
+    .kernel-sched-step li::marker{color:#66cda9}
     .kernel-sched-step .source-links{margin-top:8px}
+    .kernel-sched-steps .kernel-sched-step .source-links{flex-wrap:wrap;gap:5px;overflow:visible;padding-bottom:0}
+    .kernel-sched-steps .kernel-sched-step .source-links a{flex:0 0 auto;padding:4px 6px;font-size:8px;white-space:nowrap}
     .kernel-sched-route{display:flex;align-items:center;justify-content:center;gap:7px;flex-wrap:wrap;margin-top:10px;padding:10px;border:1px solid #2a414d;border-radius:10px;background:#0b151c;color:#8ed9bd;text-align:center;font:10px/1.6 var(--mono)}
     .kernel-sched-route i{color:#526e78;font-style:normal}
     .kernel-sched-notes{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:9px}
     .kernel-sched-note{padding:10px 11px;border:1px solid #293e49;border-radius:10px;background:#111d25;color:#98abb4;font-size:10px;line-height:1.6}
     .kernel-sched-note b{display:block;margin-bottom:3px;color:#e7b96d;font-size:10px}
+    .scheduler-port-explainer{margin-top:10px;padding:13px 14px;border:1px solid #315047;border-radius:11px;background:linear-gradient(135deg,#10231f,#101b23 62%);color:#aabac2}
+    .scheduler-port-explainer h4{margin:0 0 6px;color:#a5f0d0;font-size:12px;line-height:1.5}
+    .scheduler-port-explainer>p{margin:0;color:#aabac2;font-size:11px;line-height:1.7}
+    .scheduler-port-explainer-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:9px}
+    .scheduler-port-explainer-grid>div{min-width:0;padding:9px 10px;border:1px solid #293f49;border-radius:9px;background:#0d181f;color:#9fb1b9;font-size:10px;line-height:1.65}
+    .scheduler-port-explainer-grid b{display:block;margin-bottom:3px;color:#dce9ed;font-size:10px}
+    .scheduler-port-explainer .source-links{margin-top:9px}
     .bitmap-source{margin-top:9px;border:1px solid #304753;border-radius:10px;background:#0b151c;overflow:hidden}
     .bitmap-source summary{padding:9px 10px;cursor:pointer;color:#8de0bf;font-size:10px;line-height:1.5;list-style:none}
     .bitmap-source summary::-webkit-details-marker{display:none}
@@ -419,18 +553,93 @@
     .bitmap-walkthrough .bitmap-source-body h5{font-size:12px}
     .bitmap-walkthrough .bitmap-source-body pre{padding:12px;font-size:10px;line-height:1.6}
     .bitmap-walkthrough .bitmap-example{font-size:10px}
-    @media(max-width:900px){.kernel-sched-steps{grid-template-columns:repeat(2,minmax(0,1fr))}.kernel-sched-notes{grid-template-columns:1fr}}
+    .context-switch-guide{margin-top:15px}
+    .context-switch-guide .context-switch-scope{margin:0 0 10px;color:#91aab4;font-size:11px}
+    .context-switch-guide>.kernel-sched-route{margin:11px 0}
+    .context-switch-guide>.grid{margin-top:11px}
+    .context-switch-guide>.grid>.card{padding:14px}
+    .context-switch-guide h4{margin:0 0 7px;color:#dce9ed;font-size:13px;line-height:1.45}
+    .context-switch-guide ol{margin:7px 0 0;padding-left:19px;color:#aabac2;font-size:11px;line-height:1.65}
+    .context-switch-guide li{margin:5px 0}
+    .context-switch-guide .table-wrap{margin-top:8px}
+    .context-switch-guide details{margin-top:9px;border:1px solid #2c424e;border-radius:10px;background:#0d171e}
+    .context-switch-guide summary{padding:10px 12px;color:#dce9ed;font-size:11px;cursor:pointer}
+    .context-switch-guide details[open] summary{border-bottom:1px solid #293f4a}
+    .context-switch-guide pre{max-height:440px;margin:0;border:0;border-radius:0 0 10px 10px;padding:12px;font-size:10px;line-height:1.55;white-space:pre;overflow:auto}
+    .context-switch-guide pre code{padding:0;border:0;background:transparent;color:inherit;font:inherit}
+    .scheduler-source-appendix{margin-top:15px}
+    .scheduler-source-appendix .scheduler-algorithm-head{margin-bottom:11px}
+    :root{--scheduler-intro-max-width:1200px}
+    #scheduler .chapter-intro,.sched-analysis .algorithm-explainer,.scheduler-algorithm-head p{max-width:var(--scheduler-intro-max-width)}
+    .scheduler-trigger-map{margin:13px 0;padding:19px;border-color:#344b58;background:linear-gradient(145deg,#121f28,#0d171e)}
+    .scheduler-trigger-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px}
+    .scheduler-trigger-head h3{margin:3px 0 5px;color:#e5eff2;font-size:18px;line-height:1.4}
+    .scheduler-trigger-head p{max-width:var(--scheduler-intro-max-width);margin:0;color:#aabdc5;font-size:12px;line-height:1.65}
+    .scheduler-trigger-scope{flex:none;padding:6px 9px;border:1px solid #315348;border-radius:99px;background:#10251e;color:#83d5b5;font:9px var(--mono)}
+    .scheduler-trigger-flow{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px;margin:12px 0}
+    .scheduler-trigger-flow>div{padding:9px 10px;border:1px solid #293f4a;border-radius:9px;background:#0b151c;color:#a9c3cb;text-align:center;font-size:10px;line-height:1.5}
+    .scheduler-trigger-flow b{display:block;margin-bottom:3px;color:var(--mint);font:10px var(--mono)}
+    .scheduler-trigger-node-note{margin:0 0 10px;padding:8px 10px;border-left:2px solid #4e9f82;border-radius:0 7px 7px 0;background:#0d1a20;color:#9fb3bb;font-size:10px;line-height:1.65}
+    .scheduler-trigger-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}
+    .scheduler-trigger-card{min-width:0;padding:12px;border:1px solid #293f4a;border-radius:11px;background:#101b23}
+    .scheduler-trigger-card-head{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+    .scheduler-trigger-no{display:grid;place-items:center;flex:none;width:25px;height:25px;border:1px solid #3c7963;border-radius:50%;background:#143126;color:#a5f0d0;font:10px var(--mono)}
+    .scheduler-trigger-card h4{margin:0;color:#dce9ed;font-size:12px;line-height:1.45}
+    .scheduler-trigger-fact{margin-top:7px;color:#aabac2;font-size:10px;line-height:1.65}
+    .scheduler-trigger-fact b{display:block;margin-bottom:2px;color:#8cdbc0;font-size:10px}
+    .scheduler-trigger-card code{font-size:.9em}
+    .scheduler-trigger-card .source-links{gap:5px;margin-top:8px}
+    .scheduler-trigger-card .source-links a{padding:4px 6px;font-size:9px;white-space:normal;overflow-wrap:anywhere}
+    .scheduler-trigger-notes{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:9px}
+    .scheduler-trigger-note{padding:10px 12px;border:1px solid #344b58;border-radius:10px;background:#111d25;color:#9fb2bb;font-size:10px;line-height:1.65}
+    .scheduler-trigger-note b{display:block;margin-bottom:3px;color:#ffc978;font-size:10px}
+    .scheduler-trigger-note code{font-size:.9em}
+    .scheduler-source-appendix .scheduler-source-badge{flex:none;padding:6px 9px;border:1px solid #315c4c;border-radius:999px;background:#10231c;color:#92e6c2;font:10px var(--mono)}
+    .scheduler-source-flow{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:7px;margin:12px 0}
+    .scheduler-source-flow span{padding:8px 9px;border:1px solid #293f4a;border-radius:9px;background:#0d171e;color:#a9c3cb;text-align:center;font-size:10px}
+    .scheduler-source-flow b{display:block;margin-bottom:3px;color:var(--mint);font:10px var(--mono)}
+    .scheduler-source-details{display:grid;gap:8px;margin-top:12px}
+    .scheduler-source-item{min-width:0;border:1px solid #2c424e;border-radius:11px;background:#0d171e;overflow:hidden}
+    .scheduler-source-item>summary{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px 12px;color:#dce9ed;font-size:11px;cursor:pointer;list-style-position:inside}
+    .scheduler-source-item>summary span{font-weight:750}
+    .scheduler-source-item>summary small{flex:none;color:#78cbb0;font:9px var(--mono)}
+    .scheduler-source-item[open]>summary{border-bottom:1px solid #293f4a;background:#111d25}
+    .scheduler-source-body{padding:10px 12px 12px}
+    .scheduler-source-body p{margin:0 0 8px;color:#aabac2;font-size:11px;line-height:1.7}
+    .scheduler-source-body ul{margin:6px 0 8px;padding-left:18px;color:#aabac2;font-size:11px;line-height:1.65}
+    .scheduler-source-body li+li{margin-top:4px}
+    .scheduler-source-body h4{margin:10px 0 5px;color:#cce4e3;font-size:11px}
+    .scheduler-source-body pre{max-height:380px;margin:6px 0 9px;padding:10px;border-color:#293d48;font-size:10px;line-height:1.6;white-space:pre;overflow:auto}
+    .scheduler-source-body pre code{padding:0;border:0;background:transparent;color:inherit;font:inherit}
+    .scheduler-source-body .source-links{margin-top:8px}
+    .scheduler-source-body .note{margin-top:8px;font-size:10px;line-height:1.65}
+    @media(max-width:900px){.kernel-sched-steps{grid-template-columns:repeat(2,minmax(0,1fr))}.kernel-sched-notes{grid-template-columns:1fr}.scheduler-port-explainer-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+    @media(max-width:760px){.context-switch-guide .scheduler-algorithm-head{flex-direction:column}.context-switch-guide>.grid{grid-template-columns:1fr}}
     @media(max-width:760px){.bitmap-visual-grid{grid-template-columns:1fr}.bitmap-word{grid-template-columns:repeat(4,minmax(0,1fr))}.bitmap-zero{grid-column:1/-1}.bitmap-walkthrough-head{flex-direction:column}}
-    @media(max-width:600px){.scheduler-algorithm{padding:12px}.scheduler-algorithm-head{flex-direction:column}.kernel-sched-steps{grid-template-columns:1fr}.kernel-sched-route{justify-content:flex-start;text-align:left}.bitmap-walkthrough{padding:12px}.bitmap-visual-panel{padding:10px}.bitmap-panel-heading{flex-direction:column}.bitmap-panel-heading>span{text-align:left}.bitmap-ready-lists,.bitmap-clz-notes{grid-template-columns:1fr}.bitmap-maintenance-flow{justify-content:flex-start;text-align:left}}
+    @media(max-width:760px){.scheduler-source-flow{grid-template-columns:repeat(2,minmax(0,1fr))}.scheduler-source-item>summary{align-items:flex-start;flex-direction:column;gap:4px}}
+    @media(max-width:900px){.scheduler-trigger-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.scheduler-trigger-notes{grid-template-columns:1fr}}
+    @media(max-width:760px){.scheduler-trigger-flow{grid-template-columns:repeat(2,minmax(0,1fr))}}
+    @media(max-width:600px){.scheduler-algorithm{padding:12px}.scheduler-algorithm-head{flex-direction:column}.kernel-sched-steps{grid-template-columns:1fr}.kernel-sched-route{justify-content:flex-start;text-align:left}.scheduler-port-explainer-grid{grid-template-columns:1fr}.scheduler-trigger-map{padding:12px}.scheduler-trigger-head{flex-direction:column}.scheduler-trigger-flow,.scheduler-trigger-grid{grid-template-columns:1fr}.bitmap-walkthrough{padding:12px}.bitmap-visual-panel{padding:10px}.bitmap-panel-heading{flex-direction:column}.bitmap-panel-heading>span{text-align:left}.bitmap-ready-lists,.bitmap-clz-notes{grid-template-columns:1fr}.bitmap-maintenance-flow{justify-content:flex-start;text-align:left}.scheduler-source-flow{grid-template-columns:1fr}}
+  </style>
+  <style>
+    .shell{display:block;width:100%;max-width:none;margin:0}
+    .main{padding:68px clamp(18px,3.5vw,58px) 90px}
+    .rail{display:block;position:fixed;z-index:60;top:62px;left:16px;width:min(310px,calc(100vw - 32px));height:auto;max-height:calc(100vh - 78px);overflow:auto;padding:15px;border:1px solid #2c414d;border-radius:16px;background:#0c131bf2;box-shadow:0 18px 55px #0009;opacity:0;visibility:hidden;pointer-events:none;transform:translateY(-7px);transition:opacity .18s ease,transform .18s ease,visibility .18s}
+    .rail.open{opacity:1;visibility:visible;pointer-events:auto;transform:translateY(0)}
+    .rail .brand{margin-bottom:15px}
+    .rail nav{position:static;display:grid;grid-template-columns:1fr}
+    .nav-float-toggle{position:fixed;z-index:61;top:13px;left:16px;display:inline-flex;align-items:center;gap:8px;padding:8px 12px;border:1px solid #3b6f5e;border-radius:999px;background:#10251e;color:#a8f0d1;box-shadow:0 6px 22px #0007;font-size:12px;line-height:1.3}
+    .nav-float-toggle:hover,.nav-float-toggle[aria-expanded="true"]{border-color:var(--mint);background:#153126}
+    @media(max-width:720px){.shell{display:block}.main{padding:62px 16px 60px}.rail{top:56px;left:10px;width:min(340px,calc(100vw - 20px));max-height:calc(100vh - 68px);padding:13px}.rail .brand{margin-bottom:13px}.rail .rail-note{display:block}.nav-float-toggle{top:9px;left:10px;padding:8px 10px}}
   </style>
 
 </head>
 <body>
   <div class="progress" id="progress"></div>
+  <button class="nav-float-toggle" id="menuBtn" type="button" aria-controls="nav" aria-expanded="false" aria-label="打开章节目录"><span aria-hidden="true">☰</span><span>章节目录</span></button>
   <div class="shell">
     <aside class="rail">
       <div class="brand"><div class="brand-mark">RT</div><div><b>FreeRTOS 源码导览</b><small>202604-LTS 仓库视角</small></div></div>
-      <button class="mobile-menu" id="menuBtn" aria-expanded="false">章节目录</button>
       <nav id="nav">
         <a href="#scheduler">01 调度器</a><a href="#lifecycle">02 任务生命周期</a><a href="#primitives">03 内核组件</a><a href="#memory">04 内存</a><a href="#interrupts">05 中断与定时器</a><a href="#libraries">06 LTS 组件</a><a href="#patterns">07 应用模式</a><a href="#check">08 知识练习</a><a href="#sources">09 源码核验</a>
       </nav>
@@ -447,10 +656,10 @@
       </header>
 
       <section class="chapter" id="scheduler">
-        <div class="chapter-head"><div class="chapter-no">01 / SCHEDULER</div><div><h2>调度器：谁来使用 CPU？</h2><p class="chapter-intro">先把“任务”想成一份可暂停、可继续的工作。单核调度器每次从就绪任务中选出最高优先级者运行；任务阻塞、任务被唤醒、主动让出 CPU，都会改变选择。下面可以切换调度配置并逐步播放。</p></div></div>
+        <div class="chapter-head"><div class="chapter-no">01 / SCHEDULER</div><div><h2>调度器：谁来使用 CPU？</h2><p class="chapter-intro">先把“任务”想成一份可暂停、可继续的工作。单核调度器每次从就绪任务中选出最高优先级者运行；任务阻塞、任务被唤醒、主动让出 CPU，都会改变选择。选择“多链表协同”轨迹，可同时观察 Ready、延时、对象等待、挂起与待清理任务如何迁移。</p></div></div>
         <div class="sched-console">
           <div class="sched-toolbar">
-            <label for="scenario">轨迹</label><select id="scenario"><option value="wake">事件唤醒 → 高优先级抢占</option><option value="timeout">延时到期 → Ready → 调度</option><option value="equal">同优先级 → tick 与链表轮转</option><option value="startup">首次启动 → SVC 恢复首个任务</option></select>
+            <label for="scenario">轨迹</label><select id="scenario"><option value="wake">事件唤醒 → 高优先级抢占</option><option value="lists">多链表协同 → 等待、唤醒、挂起、清理</option><option value="timeout">延时到期 → Ready → 调度</option><option value="equal">同优先级 → tick 与链表轮转</option><option value="startup">首次启动 → SVC 恢复首个任务</option></select>
             <label for="schedMode">单核配置</label><select id="schedMode"><option value="preempt-slice">抢占开 + 时间片开</option><option value="preempt-no-slice">抢占开 + 时间片关</option><option value="cooperative">抢占关（任务合作）</option></select>
             <span class="tag">优先级标签是相对演示值</span>
           </div>
@@ -462,7 +671,7 @@
                 <div class="lanes-panel"><div class="panel-cap"><b>Ready lists · 就绪任务按有效优先级分组</b><span>当前运行任务仍属于 Ready</span></div><div class="lane-stack" id="schedLanes" aria-live="polite"></div></div>
                 <div class="cpu-panel"><div class="cpu-die">CPU<i class="cpu-led"></i></div><div><div class="cpu-current" id="cpuTask">尚未选择<small>当前任务</small></div><div class="cpu-arrow">↓</div><div class="cpu-action" id="cpuAction">等待调度</div></div></div>
               </div>
-              <div class="wait-panel"><div class="panel-cap"><b>阻塞与等待索引</b><span>状态链表项 / 事件链表项</span></div><div class="wait-columns"><div class="wait-column"><h4>Delay list · 等待超时</h4><div id="delayWaiters"></div></div><div class="wait-column"><h4>Queue event list · 等待数据</h4><div id="eventWaiters"></div></div></div></div>
+              <div class="wait-panel"><div class="panel-cap"><b>其他状态链表</b><span>这些任务不参加 Ready 优先级选择</span></div><div class="wait-columns"><div class="wait-column"><h4>Delay list · xStateListItem · 等待超时</h4><div id="delayWaiters"></div></div><div class="wait-column"><h4>Object event list · xEventListItem</h4><div id="eventWaiters"></div></div><div class="wait-column"><h4>xSuspendedTaskList · xStateListItem</h4><div id="suspendedWaiters"></div></div><div class="wait-column"><h4>xTasksWaitingTermination · xStateListItem</h4><div id="terminationWaiters"></div></div></div><p class="wait-explainer"><code>xStateListItem</code> 表示任务状态；等待队列时，另一个 <code>xEventListItem</code> 记录它等哪个对象。有限超时的对象等待会同时出现在 Delay 和 Event 两栏；当 <code>INCLUDE_vTaskSuspend == 1</code> 且对象 API 允许无限等待时，任务会同时出现在 Suspended 和 Event 两栏。</p></div>
               <div class="event-ribbon"><div class="event-icon" id="eventIcon">◈</div><div><b id="eventTitle">准备开始</b><span id="eventCopy">每一步只推进一段内核路径。观察任务状态、链表位置和 CPU 当前任务如何一起变化。</span></div></div>
               <div class="pipeline" id="schedPipeline"><div class="pipe-step" data-alg="api"><b>01 · API</b>阻塞 / 唤醒</div><div class="pipe-step" data-alg="lists"><b>02 · LIST</b>状态迁移</div><div class="pipe-step" data-alg="tick"><b>03 · TICK</b>到期检查</div><div class="pipe-step" data-alg="pick"><b>04 · PICK</b>优先级与游标</div><div class="pipe-step" data-alg="port"><b>05 · PORT</b>保存 / 恢复</div></div>
               <div class="sched-actions"><button id="prevStep">← 上一步</button><button class="btn-primary" id="nextStep">下一步 →</button><button id="playSteps">▶ 自动播放</button><button id="resetSim">重置轨迹</button></div>
@@ -517,20 +726,118 @@
         <article class="card scheduler-algorithm" id="scheduler-algorithm">
           <div class="scheduler-algorithm-head"><div><h3>内核调度算法：从状态变化到任务继续运行</h3><p>下面按本仓库的单核通用路径说明一次完整调度。调度器不会不断扫描全部任务；状态变化先改变各条链表，只有到达切换点时，内核才从 Ready 集合中选下一任务。</p></div><span class="scheduler-algorithm-scope">单核 · FreeRTOS Kernel</span></div>
           <div class="kernel-sched-steps">
-            <section class="kernel-sched-step"><div class="kernel-sched-step-head"><span class="kernel-sched-step-no">01</span><h4>任务状态或事件发生变化</h4></div><p>任务真正进入阻塞时，当前任务的状态节点离开 Ready：有限超时通常进入延时链表；若等待队列、信号量等对象，事件节点还会进入该对象的事件等待链表；无限期等待时，状态节点也可能进入挂起链表。</p><p>事件到达、超时到期或显式恢复时，内核按对应路径摘除状态节点及必要的事件节点，再把任务放入其优先级的 Ready 链表。等待链表决定谁的条件先满足；Ready 决定谁有资格竞争 CPU。</p><div class="source-links"><a href="../../FreeRTOS/FreeRTOS-Kernel/tasks.c">tasks.c · 阻塞、唤醒、tick</a></div></section>
-            <section class="kernel-sched-step"><div class="kernel-sched-step-head"><span class="kernel-sched-step-no">02</span><h4>按配置判断是否请求切换</h4></div><p>抢占开启时，新就绪任务优先级高于当前任务会请求切换。抢占与时间片都开启时，tick 发现当前优先级的 Ready 链表有多个任务，也会请求同级轮转。任务主动让出 CPU 或当前任务阻塞，也会进入调度路径。</p><p>因此 tick 不等于必然切换：没有到期唤醒、没有同级轮转条件时，当前任务可以继续运行。关闭抢占时，tick 不会仅因高优先级任务就绪而抢占当前任务。</p><div class="source-links"><a href="../../FreeRTOS/FreeRTOS-Kernel/tasks.c">tasks.c · xTaskIncrementTick</a></div></section>
-            <section class="kernel-sched-step"><div class="kernel-sched-step-head"><span class="kernel-sched-step-no">03</span><h4>移植层保存当前任务现场</h4></div><p>切换请求到达处理器切换入口后，port 保存当前任务需要保留的寄存器和栈指针到该任务自己的栈 / TCB。Cortex-M4F 的例子由 PendSV 完成这一步，再调用内核选择器。</p><p>任务切换是“保存旧任务 → 选新任务 → 恢复新任务”，寄存器帧布局由目标 port 决定。</p><div class="source-links"><a href="../../FreeRTOS/FreeRTOS-Kernel/portable/GCC/ARM_CM4F/port.c">ARM_CM4F · xPortPendSVHandler</a></div></section>
+            <section class="kernel-sched-step"><div class="kernel-sched-step-head"><span class="kernel-sched-step-no">01</span><h4>任务状态或事件发生变化</h4></div>
+              <p>任务真正阻塞时，内核把它从 Ready 移到对应的等待状态链表。等待条件决定任务挂在哪些链表上：</p>
+              <ul><li><b>有限时间等待：</b><code>xStateListItem</code> 从 Ready 摘下，按唤醒 tick 放入当前或溢出延时链表；若等待队列或信号量，还会把另一个节点 <code>xEventListItem</code> 放入对象的事件等待链表。</li><li><b>两个节点，各司其职：</b>例如带超时的 <code>xQueueReceive()</code>，状态节点记录“最晚何时醒”，事件节点记录“正在等哪个队列”。它们是同一个 TCB 的两个节点，不是任务副本。</li><li><b>只延时，不等对象：</b><code>vTaskDelay(100)</code> 只把 <code>xStateListItem</code> 放入延时链表；没有对象等待，因此不使用 <code>xEventListItem</code>。对象 API 的无限等待则按配置进入挂起链表或延时链表。</li><li><b>条件满足或超时：</b>内核移除相应等待节点，再把任务放进对应优先级的 Ready 链表。事件等待链表决定对象唤醒谁，延时链表检查到期时间，Ready 链表提供 CPU 候选任务。</li></ul>
+              <div class="source-links"><a href="../../FreeRTOS/FreeRTOS-Kernel/tasks.c">tasks.c · 阻塞、唤醒、tick</a><a href="../../FreeRTOS/FreeRTOS-Kernel/queue.c">queue.c · xQueueReceive 等待路径</a></div>
+            </section>
+            <section class="kernel-sched-step"><div class="kernel-sched-step-head"><span class="kernel-sched-step-no">02</span><h4>按配置判断是否请求切换</h4></div>
+              <p>任务就绪或状态改变后，内核根据调度配置和当前运行情况判断是否需要切换。tick 只是常见检查时机之一，并不代表每个 tick 都切换。</p>
+              <ul><li><b>更高优先级任务就绪：</b><code>configUSE_PREEMPTION == 1</code> 时会请求抢占当前任务。</li><li><b>同优先级轮转：</b>同时启用 <code>configUSE_TIME_SLICING == 1</code> 时，tick 发现当前优先级有多个 Ready 任务，会请求轮转；关闭时间片不会关闭高优先级抢占。</li><li><b>任务主动让出或阻塞：</b><code>taskYIELD()</code> 主动请求调度；当前任务阻塞或自删除、不能继续运行时，也必须重新选择可运行任务。若没有更合适的任务，当前任务仍可能再次被选中。</li><li><b>请求如何交给处理器：</b><code>xTaskIncrementTick()</code> 只报告是否需要切换。GCC ARM_CM4F 的 SysTick handler 据此挂起 PendSV；ISR 使用 FromISR API 时，若 <code>xHigherPriorityTaskWoken</code> 为真，调用方通过 <code>portYIELD_FROM_ISR(xHigherPriorityTaskWoken)</code> 请求在中断退出后切换。PendSV 随后保存现场并调用 <code>vTaskSwitchContext()</code>。</li><li><b>调度器挂起期间：</b>切换请求先记录下来，恢复调度器后再处理；因此 tick、唤醒和真正切换可能不是同一时刻发生。</li></ul>
+              <div class="source-links"><a href="../../FreeRTOS/FreeRTOS-Kernel/tasks.c">tasks.c · xTaskIncrementTick</a><a href="../../FreeRTOS/FreeRTOS-Kernel/portable/GCC/ARM_CM4F/port.c">ARM_CM4F · SysTick → PendSV</a><a href="../../FreeRTOS/FreeRTOS-Kernel/include/task.h">task.h · taskYIELD</a><a href="../../FreeRTOS/FreeRTOS-Kernel/portable/GCC/ARM_CM4F/portmacro.h">portmacro.h · portYIELD_FROM_ISR</a></div>
+            </section>
+            <section class="kernel-sched-step"><div class="kernel-sched-step-head"><span class="kernel-sched-step-no">03</span><h4>移植层保存现场并交接新任务</h4></div>
+              <p>可以把任务切换想成“存下 A 的进度，再读出 B 的进度”。在本仓库的 Cortex‑M4F 移植层中，PendSV 负责完成这次交接：</p>
+              <ul>
+                <li><b>PendSV 接手请求：</b>调度路径提出切换请求后，port 会挂起 PendSV。它的优先级较低，通常等更紧急的中断完成后才执行。</li>
+                <li><b>保存当前任务 A：</b>Cortex-M 硬件先把一部分寄存器压入 A 的任务栈；port 再保存其余需要保留的寄存器，并把栈顶位置记到 A 的 TCB。A 暂时离开 CPU，但运行进度还在。</li>
+                <li><b>内核选择任务 B：</b><code>xPortPendSVHandler()</code> 调用 <code>vTaskSwitchContext()</code>，内核选出下一任务并更新 <code>pxCurrentTCB</code>。此时 CPU 仍在切换流程里，B 还没有开始运行。</li>
+                <li><b>恢复并交给 B：</b>port 从 B 的 TCB 取出栈顶位置，恢复 B 的寄存器后异常返回。B 若曾经运行过，就从上次停下的位置继续；A 以后再次被选中时也一样。</li>
+              </ul>
+              <p><b>首次启动是个例外：</b>此时还没有旧任务 A 要保存。内核通过 SVC 恢复预先准备好的第一个任务现场，让它从任务入口开始运行。</p>
+              <div class="source-links"><a href="../../FreeRTOS/FreeRTOS-Kernel/portable/GCC/ARM_CM4F/port.c">port.c · PendSV / SVC</a><a href="../../FreeRTOS/FreeRTOS-Kernel/tasks.c">tasks.c · vTaskSwitchContext</a><a href="#context-switch-guide">查看完整现场路径 ↓</a></div>
+            </section>
             <section class="kernel-sched-step"><div class="kernel-sched-step-head"><span class="kernel-sched-step-no">04</span><h4>只从 Ready 链表选最高优先级</h4></div>
-              <p>通用实现从记录的最高 Ready 优先级向下跳过空链表；启用 port 优化时，用端口提供的优先级位图 / 操作找到最高非空优先级。延时、对象等待、挂起和待清理链表都不参与 CPU 候选比较。</p>
-              <p>选中优先级后，<code>listGET_OWNER_OF_NEXT_ENTRY()</code> 沿该级链表游标取下一个 TCB；同优先级轮转在这里完成。被选中的任务仍是 Ready，节点不会因为正在单核上运行而摘出 Ready 链表。</p>
+              <p>到达切换点后，内核只在 Ready 链表中找候选任务。通用路径从记录的最高 Ready 优先级开始，遇到空链表就逐级向下找；启用端口优化时，则用优先级位图快速定位最高的非空链表。延时、对象等待、挂起和待清理链表都不参加这次 CPU 选择。</p>
+              <ul><li><b>先比优先级：</b>优先级数值更高的 Ready 任务先运行；低优先级任务不会越过仍 Ready 的高优先级任务。</li><li><b>再选同级任务：</b><code>listGET_OWNER_OF_NEXT_ENTRY()</code> 推进该级链表的游标，取下一个 TCB；同优先级轮转在这一步发生。</li><li><b>选中不等于摘链：</b>Ready 链表表示“具备运行资格的任务”，Running 是其中当前占用 CPU 的任务，不是另一个互斥链表。保留在 Ready 链表中，后续调度仍能按优先级和同级游标选到它；只有阻塞、挂起或删除时，任务才会从 Ready 摘下。<code>pxCurrentTCB</code> 负责记录当前正在执行的 TCB。</li></ul>
               <div class="source-links"><a href="../../FreeRTOS/FreeRTOS-Kernel/tasks.c">tasks.c · taskSELECT_HIGHEST_PRIORITY_TASK</a><a href="../../FreeRTOS/FreeRTOS-Kernel/list.c">list.c · 链表游标</a><a href="#bitmap-selector">位图图示与源码 →</a></div>
 
             </section>
-            <section class="kernel-sched-step"><div class="kernel-sched-step-head"><span class="kernel-sched-step-no">05</span><h4>更新当前任务指针</h4></div><p>选择宏把新任务的 TCB 写入 <code>pxCurrentTCB</code>。此处完成的是“内核决定下一个运行谁”；栈指针和处理器寄存器还要由 port 在切换返回路径中恢复。</p><p>如果调度器仍处于挂起状态，<code>vTaskSwitchContext()</code> 不执行选择，而是记录待处理的 yield；事件唤醒的事件节点暂存于 <code>xPendingReadyList</code>，恢复时再拆除对应节点、转入 Ready，并处理积压 tick。</p><div class="source-links"><a href="../../FreeRTOS/FreeRTOS-Kernel/tasks.c">tasks.c · vTaskSwitchContext / xTaskResumeAll</a></div></section>
-            <section class="kernel-sched-step"><div class="kernel-sched-step-head"><span class="kernel-sched-step-no">06</span><h4>恢复新任务并从原处继续</h4></div><p>port 从新任务 TCB 取出保存的栈顶，恢复寄存器并异常返回。此前被抢占的任务从中断处继续；曾阻塞的任务从阻塞 API 返回后继续；首次运行的任务则从任务入口开始。</p><p>内核启动第一个任务是特殊路径：Cortex-M 使用 SVC 恢复初始任务栈帧，不经过一次普通的“切出旧任务”流程。</p><div class="source-links"><a href="../../FreeRTOS/FreeRTOS-Kernel/portable/GCC/ARM_CM4F/port.c">ARM_CM4F · PendSV / SVC</a></div></section>
+            <section class="kernel-sched-step"><div class="kernel-sched-step-head"><span class="kernel-sched-step-no">05</span><h4>更新当前任务指针</h4></div>
+              <p>选出任务 B 后，<code>vTaskSwitchContext()</code> 通过选择宏把 B 的 TCB 地址写入 <code>pxCurrentTCB</code>。这表示内核已经决定“接下来该谁运行”，但 CPU 此刻还在 PendSV 切换处理中，B 的栈和寄存器还没有恢复。</p>
+              <ul><li><b>正常切换：</b>port 随后读取新的 <code>pxCurrentTCB</code>，从 B 保存的栈顶开始恢复。</li><li><b>调度器挂起时：</b>内核先记下待处理的 yield（任务切换请求：请调度器重新选择运行任务），暂不立即选择。这只是待处理标记，不代表任务已经切换或已被挂起。此时事件唤醒任务的 <code>xEventListItem</code> 可暂存于 <code>xPendingReadyList</code>，而状态节点仍留在原状态链表。</li><li><b>恢复调度器：</b><code>xTaskResumeAll()</code> 再把这些任务正式转入 Ready，处理挂起期间累计的 tick，最后在需要时触发一次选择。</li></ul>
+              <div class="source-links"><a href="../../FreeRTOS/FreeRTOS-Kernel/tasks.c">tasks.c · vTaskSwitchContext / xTaskResumeAll</a></div>
+            </section>
+            <section class="kernel-sched-step"><div class="kernel-sched-step-head"><span class="kernel-sched-step-no">06</span><h4>恢复新任务并从原处继续</h4></div>
+              <p>在本仓库的 Cortex-M4F port 中，PendSV 从新任务 TCB 取出保存的栈顶，切换 PSP，并恢复该任务的软件现场；异常返回时，Cortex-M 再从任务栈弹出硬件现场，恢复执行位置。</p>
+              <ul><li><b>被抢占的任务：</b>恢复后从中断打断的位置继续，就像这段时间只是暂停了一下。</li><li><b>刚解除阻塞的任务：</b>从阻塞 API 后续代码继续运行；API 返回后，任务代码通常还会检查是否真的拿到了队列数据或信号量。</li><li><b>第一次运行的任务：</b>栈中预先准备了初始现场，异常返回后从任务入口开始执行。启动第一个任务走 SVC 路径，因为当时没有旧任务需要保存。</li></ul>
+              <div class="source-links"><a href="../../FreeRTOS/FreeRTOS-Kernel/portable/GCC/ARM_CM4F/port.c">ARM_CM4F · PendSV / SVC</a><a href="#context-switch-guide">寄存器与现场恢复细节 →</a></div>
+            </section>
           </div>
           <div class="kernel-sched-route" aria-label="调度算法总流程"><span>API / tick / ISR 改变状态</span><i>→</i><span>满足条件进入 Ready</span><i>→</i><span>达到切换点</span><i>→</i><span>保存现场</span><i>→</i><span>最高非空优先级 + 同级游标</span><i>→</i><span>更新 pxCurrentTCB</span><i>→</i><span>恢复并继续</span></div>
           <div class="kernel-sched-notes"><div class="kernel-sched-note"><b>Ready 不表示正在运行</b>它表示任务已具备运行条件。任务入 Ready 后是否立刻运行，还要看当前任务优先级、抢占配置和实际切换点。</div><div class="kernel-sched-note"><b>同级选择与优先级选择分两步</b>先挑最高非空优先级，再由该 Ready 链表的游标挑同级下一个任务；关闭时间片不会关闭高优先级抢占。</div><div class="kernel-sched-note"><b>挂起调度器会延后整理</b>挂起期间被事件唤醒的任务先记入 Pending Ready；恢复时转入正式 Ready 链表，再按正常选择流程决定运行者。</div></div>
+          <aside class="scheduler-port-explainer" aria-label="port 移植层说明"><h4>框图外补充：port 是什么？</h4><p><code>port</code> 是 FreeRTOS 的“移植层”，不是单独一个函数。不同芯片架构和编译器需要各自的 port，负责把内核的调度决定落实为这颗 CPU 上的栈、寄存器、中断和临界区操作。</p><div class="scheduler-port-explainer-grid"><div><b>内核负责决定</b><code>tasks.c</code> 管理任务状态和各类链表；到切换点时，选择下一个 Ready 任务并更新 <code>pxCurrentTCB</code>。</div><div><b>port 负责在芯片上执行</b>保存旧任务现场、恢复新任务现场，并把 tick、中断退出时的切换请求接到目标处理器的异常机制上。</div><div><b>本仓库举例</b>这里使用 GCC + Cortex‑M4F：<code>port.c</code> 实现 SysTick、PendSV 和 SVC 路径；<code>portmacro.h</code> 提供该 port 的宏和底层定义。换芯片或编译器，具体实现会不同。</div></div><div class="source-links"><a href="../../FreeRTOS/FreeRTOS-Kernel/portable/GCC/ARM_CM4F/port.c">本例 · ARM_CM4F/port.c</a><a href="../../FreeRTOS/FreeRTOS-Kernel/portable/GCC/ARM_CM4F/portmacro.h">本例 · ARM_CM4F/portmacro.h</a><a href="#context-switch-guide">查看 PendSV / SVC 完整现场路径 →</a></div></aside>
+        </article>
+        <article class="card scheduler-trigger-map" id="scheduler-triggers">
+          <div class="scheduler-trigger-head">
+            <div>
+              <span class="kicker">SCHEDULER TRIGGERS · EVENT → LIST → SWITCH</span>
+              <h3>什么会触发任务切换？TCB 会怎样移动？</h3>
+              <p>先区分两件事：事件可能改变任务状态和链表位置，也可能提出切换请求；只有到达切换点，port 才保存旧任务并恢复新任务。下面按单核通用路径说明，Cortex‑M4F 的实际交接由 PendSV 完成。</p>
+            </div>
+            <span class="scheduler-trigger-scope">单核 · 内核与 port</span>
+          </div>
+          <div class="scheduler-trigger-flow" aria-label="事件到任务切换的路径">
+            <div><b>01 · 触发事件</b>阻塞、到期、唤醒、yield、优先级或状态变化</div>
+            <div><b>02 · 更新链表</b>移动 TCB 的状态节点；对象等待时也处理事件节点</div>
+            <div><b>03 · 判断请求</b>结合当前优先级、抢占与时间片配置</div>
+            <div><b>04 · 交给 port</b>到安全边界保存现场、选择并恢复任务</div>
+          </div>
+          <p class="scheduler-trigger-node-note">链表搬动的是 TCB 里的节点，不是复制任务：<code>xStateListItem</code> 表示任务当前的调度状态；等待对象时，<code>xEventListItem</code> 还可同时挂在对象等待链表中。</p>
+          <div class="scheduler-trigger-grid">
+            <section class="scheduler-trigger-card">
+              <div class="scheduler-trigger-card-head"><span class="scheduler-trigger-no">01</span><h4>当前任务阻塞或延时</h4></div>
+              <div class="scheduler-trigger-fact"><b>链表变化</b>任务真正阻塞或执行正数延时（<code>vTaskDelay(n&gt;0)</code>）时，<code>xStateListItem</code> 从 Ready 移到延时链表；配置支持的无限等待也可能移到 <code>xSuspendedTaskList</code>。若在等队列、信号量等对象，<code>xEventListItem</code> 还会挂到对象等待链表。</div>
+              <div class="scheduler-trigger-fact"><b>切换影响</b>当前任务已不能继续运行，内核要改选其他 Ready 任务；如果没有其他应用任务，可能选中 Idle。</div>
+              <div class="source-links"><a href="../../FreeRTOS/FreeRTOS-Kernel/tasks.c">tasks.c · vTaskDelay</a><a href="../../FreeRTOS/FreeRTOS-Kernel/queue.c">queue.c · xQueueReceive</a></div>
+            </section>
+            <section class="scheduler-trigger-card">
+              <div class="scheduler-trigger-card-head"><span class="scheduler-trigger-no">02</span><h4>Tick 让等待时间到期</h4></div>
+              <div class="scheduler-trigger-fact"><b>链表变化</b>内核从延时链表摘下到期任务的 <code>xStateListItem</code>，并加入对应优先级的 Ready 链表。若它同时在等对象，超时路径也会摘下 <code>xEventListItem</code>。</div>
+              <div class="scheduler-trigger-fact"><b>切换影响</b>到期本身不保证切换：抢占开启且唤醒任务优先级更高时请求切换；同级轮转还要看时间片配置和 Ready 任务数。</div>
+              <div class="source-links"><a href="../../FreeRTOS/FreeRTOS-Kernel/tasks.c">tasks.c · xTaskIncrementTick</a></div>
+            </section>
+            <section class="scheduler-trigger-card">
+              <div class="scheduler-trigger-card-head"><span class="scheduler-trigger-no">03</span><h4>任务上下文中的对象或通知唤醒</h4></div>
+              <div class="scheduler-trigger-fact"><b>链表变化</b>对象按自己的规则找到符合条件的等待任务。对象等待项从事件链表摘下，状态节点从阻塞状态链表移到 Ready；任务通知不使用对象事件节点，但等待任务也会转入 Ready。</div>
+              <div class="scheduler-trigger-fact"><b>切换影响</b>任务只是变成可运行；是否立刻抢占当前任务，仍取决于优先级和抢占配置。事件组等对象也可能一次唤醒多个任务。</div>
+              <div class="source-links"><a href="../../FreeRTOS/FreeRTOS-Kernel/queue.c">queue.c · 对象等待与唤醒</a><a href="../../FreeRTOS/FreeRTOS-Kernel/event_groups.c">event_groups.c</a><a href="../../FreeRTOS/FreeRTOS-Kernel/tasks.c">tasks.c · 通知</a></div>
+            </section>
+            <section class="scheduler-trigger-card">
+              <div class="scheduler-trigger-card-head"><span class="scheduler-trigger-no">04</span><h4>ISR 中唤醒等待任务</h4></div>
+              <div class="scheduler-trigger-fact"><b>链表变化</b>FromISR API 完成对象等待项摘除和状态节点转 Ready；若调度器正挂起，则先放进 <code>xPendingReadyList</code>，稍后再正式进入 Ready。</div>
+              <div class="scheduler-trigger-fact"><b>切换影响</b>API 通过 <code>xHigherPriorityTaskWoken</code> 报告是否需要更高优先级任务抢占。调用方按 port 约定使用 <code>portYIELD_FROM_ISR()</code>，在中断退出时切换。</div>
+              <div class="source-links"><a href="../../FreeRTOS/FreeRTOS-Kernel/queue.c">queue.c · FromISR API</a><a href="../../FreeRTOS/FreeRTOS-Kernel/portable/GCC/ARM_CM4F/portmacro.h">portmacro.h · ISR yield</a></div>
+            </section>
+            <section class="scheduler-trigger-card">
+              <div class="scheduler-trigger-card-head"><span class="scheduler-trigger-no">05</span><h4>主动让出 CPU 或时间片到期</h4></div>
+              <div class="scheduler-trigger-fact"><b><code>taskYIELD()</code></b>提出重新调度请求，但任务状态不变，仍留在 Ready；同级选择时推进链表游标。若没有更合适的任务，可能再次选中自己。</div>
+              <div class="scheduler-trigger-fact"><b>时间片 tick</b>仅当抢占和时间片都启用、当前优先级 Ready 链表有多个任务时，才请求同级轮转；任务不会因此移入延时或等待链表。</div>
+              <div class="source-links"><a href="../../FreeRTOS/FreeRTOS-Kernel/include/task.h">task.h · taskYIELD</a><a href="../../FreeRTOS/FreeRTOS-Kernel/tasks.c">tasks.c · 时间片判断</a><a href="../../FreeRTOS/FreeRTOS-Kernel/list.c">list.c · 链表游标</a></div>
+            </section>
+            <section class="scheduler-trigger-card">
+              <div class="scheduler-trigger-card-head"><span class="scheduler-trigger-no">06</span><h4>创建、恢复或提前解除等待</h4></div>
+              <div class="scheduler-trigger-fact"><b>链表变化</b>新任务直接进入 Ready；<code>vTaskResume()</code> 把状态节点从 Suspended 移到 Ready；<code>xTaskAbortDelay()</code> 可把阻塞任务提前从延时链表移到 Ready，并在对象等待时摘下事件节点。</div>
+              <div class="scheduler-trigger-fact"><b>切换影响</b>调度器运行且抢占开启时，若因此进入 Ready 的任务优先级高于当前任务，内核请求切换；否则它先等待 CPU。</div>
+              <div class="source-links"><a href="../../FreeRTOS/FreeRTOS-Kernel/tasks.c">tasks.c · 创建 / Resume / AbortDelay</a></div>
+            </section>
+            <section class="scheduler-trigger-card">
+              <div class="scheduler-trigger-card-head"><span class="scheduler-trigger-no">07</span><h4>任务优先级发生变化</h4></div>
+              <div class="scheduler-trigger-fact"><b>链表变化</b>若任务已在 Ready，内核把它的状态节点从旧优先级链表移到新优先级链表；Blocked 或 Suspended 任务仍留在原状态链表。</div>
+              <div class="scheduler-trigger-fact"><b>切换影响</b>新优先级让某个 Ready 任务高于当前任务，或当前运行任务被降级时，抢占配置允许的话会请求切换。互斥量优先级继承与恢复也会改变有效优先级。</div>
+              <div class="source-links"><a href="../../FreeRTOS/FreeRTOS-Kernel/tasks.c">tasks.c · vTaskPrioritySet / priority inheritance</a></div>
+            </section>
+            <section class="scheduler-trigger-card">
+              <div class="scheduler-trigger-card-head"><span class="scheduler-trigger-no">08</span><h4>显式挂起或删除任务</h4></div>
+              <div class="scheduler-trigger-fact"><b>链表变化</b><code>vTaskSuspend()</code> 把状态节点移到 <code>xSuspendedTaskList</code>；若任务正在等对象，也会摘下对象事件节点。<code>vTaskDelete()</code> 先把任务从原状态和事件链表摘除。</div>
+              <div class="scheduler-trigger-fact"><b>切换与清理</b>若挂起或删除的是当前任务，必须改选其他任务。自删除的当前任务随后进入 <code>xTasksWaitingTermination</code>，由 Idle task 执行删除清理；动态分配的 TCB 和栈会在此释放。</div>
+              <div class="source-links"><a href="../../FreeRTOS/FreeRTOS-Kernel/tasks.c">tasks.c · vTaskSuspend / vTaskDelete</a></div>
+            </section>
+          </div>
+          <div class="scheduler-trigger-notes">
+            <aside class="scheduler-trigger-note"><b>调度器挂起时，唤醒会延后整理</b>事件到达后，<code>xEventListItem</code> 暂存在 <code>xPendingReadyList</code>，而 <code>xStateListItem</code> 仍留在原来的延时或挂起链表。<code>xTaskResumeAll()</code> 恢复调度器时再摘除这两个位置、正式加入 Ready，并处理累计的 tick。Pending Ready 表示“等恢复后转 Ready”，不等于任务被挂起。</aside>
+            <aside class="scheduler-trigger-note"><b>进入 Ready 不等于马上运行</b>更高优先级任务是否抢占、同级任务是否轮转，由抢占和时间片配置决定；内核提出切换请求后，ARM_CM4F port 再通过 PendSV 保存旧现场、恢复新任务。首次启动是例外：SVC 直接恢复第一个任务，不需要保存旧任务。</aside>
+          </div>
         </article>
         <article class="card bitmap-walkthrough" id="bitmap-selector">
           <div class="bitmap-walkthrough-head"><div><span class="kicker">BITMAP READY SELECTOR · GCC ARM_CM4F</span><h3>位图怎样快速找到最高优先级 Ready 链表</h3><p>一个位对应一个优先级。位图记录“哪些优先级至少有一个 Ready 任务”；CLZ 一次定位最高置位，再访问该级 Ready 链表。下面用 7、5 两级有任务的例子展开。</p></div><span class="bitmap-scope">32 位优先级图示</span></div>
@@ -650,6 +957,473 @@ static inline uint8_t ucPortCountLeadingZeros( uint32_t ulBitmap )
           </div>
           <div class="source-links"><a href="#mutexLab">打开互斥锁 18 步源码演示 →</a><a href="../../FreeRTOS/FreeRTOS-Kernel/queue.c">queue.c · mutex Take / Give 路径</a><a href="../../FreeRTOS/FreeRTOS-Kernel/tasks.c">tasks.c · xTaskPriorityInherit / Disinherit</a></div>
         </article>
+        <article class="card context-switch-guide" id="context-switch-guide">
+          <div class="scheduler-algorithm-head"><div><span class="kicker">PORT CONTEXT SWITCH · Cortex-M</span><h3>任务切换的完整现场路径：PendSV、SVC 与寄存器</h3><p>前面的调度流程说明了内核何时选中下一个 TCB。本节继续说明 CPU 怎样保存当前任务、切换栈指针，并从新任务的现场恢复执行。</p></div><span class="scheduler-algorithm-scope context-switch-scope">GCC · ARM_CM4F · 单核</span></div>
+          <p class="note"><strong>先分清两层职责：</strong><code>tasks.c</code> 的 <code>vTaskSwitchContext()</code> 决定下一个运行任务并更新 <code>pxCurrentTCB</code>；真正搬运寄存器、保存 / 恢复任务栈并执行异常返回的是目标 port。下面的指令和寄存器名具体对应本仓库 GCC ARM_CM4F，其他架构或 port 的入口与保存布局可能不同。</p>
+          <div class="kernel-sched-route" aria-label="Cortex-M 任务切换顺序"><span>API / tick / ISR 请求 yield</span><i>→</i><span>PendSV 等待较高优先级中断结束</span><i>→</i><span>保存旧任务现场</span><i>→</i><span>内核更新 pxCurrentTCB</span><i>→</i><span>恢复新任务现场</span><i>→</i><span>异常返回继续运行</span></div>
+
+          <div class="grid two">
+            <div class="card"><h4>普通任务间切换：PendSV</h4><ol>
+              <li><b>产生切换请求。</b>任务主动让出时，<code>taskYIELD()</code>（<code>task.h</code>）转到 <code>portYIELD()</code>（<code>portmacro.h</code>），写入 ICSR 的 <code>PENDSVSET</code> 并执行屏障指令。Tick 路径中，<code>xTaskIncrementTick()</code>（<code>tasks.c</code>）只返回是否需要切换；<code>xPortSysTickHandler()</code>（<code>port.c</code>）据此置位 PendSV。ISR 路径则由调用方在 <code>xHigherPriorityTaskWoken</code> 为真时调用 <code>portYIELD_FROM_ISR()</code>，它最终也请求 PendSV。PendSV 优先级最低，等当前及更高优先级中断完成后再处理请求。</li>
+              <li><b>硬件先压入异常帧。</b>任务在 Thread mode 使用 PSP。打断任务的异常入口由 Cortex-M 把 <code>R0-R3</code>、<code>R12</code>、任务的 <code>LR</code>、<code>PC</code> 和 <code>xPSR</code> 压入任务栈；若启用且正在使用 FPU，会采用扩展浮点帧，懒惰压栈还可能延后实际写寄存器。处理器随后进入 Handler mode，异常处理代码使用 MSP。</li>
+              <li><b>PendSV 汇编保存 port 软件现场。</b>它从 PSP 取出被打断任务的栈顶；按 <code>EXC_RETURN</code> 检查浮点帧，需要时保存高位 <code>S16-S31</code>，再保存 <code>R4-R11</code> 和 <code>EXC_RETURN</code>。保存后的指针写入当前 TCB 首字段 <code>pxTopOfStack</code>。</li>
+              <li><b>调用内核选择器。</b>汇编把临时指针保存在 Handler 的 MSP 上，设置 <code>BASEPRI</code> 屏蔽会与内核临界区冲突的中断，然后调用 C 函数 <code>vTaskSwitchContext()</code>。内核从 Ready 链表选择任务并更新 <code>pxCurrentTCB</code>；此时 CPU 仍在 PendSV Handler 中，尚未开始执行新任务。</li>
+              <li><b>恢复新任务并返回。</b>汇编沿新 <code>pxCurrentTCB</code> 取出其 <code>pxTopOfStack</code>，恢复 <code>R4-R11</code>、<code>EXC_RETURN</code> 以及需要的 <code>S16-S31</code>，再把新的栈顶写回 PSP。<code>BX R14</code> 以 EXC_RETURN 触发异常返回；硬件接着从新任务栈恢复自动压入的寄存器帧，新任务从被打断的位置继续。旧任务的现场仍保存在自己的栈上，之后再次被选中时会按同一路径恢复。</li>
+            </ol></div>
+            <div class="card"><h4>首次启动任务：SVC</h4><ol>
+              <li><b>创建时先造好一份“初始现场”。</b><code>pxPortInitialiseStack()</code> 按异常返回所需的布局预填任务栈：软件恢复区预留 <code>R4-R11</code>；并放入 <code>EXC_RETURN</code>、参数 <code>R0</code>、任务入口 <code>PC</code>、返回错误处理地址 <code>LR</code> 和初始 <code>xPSR</code>。这些值不是任务运行后保存下来的，而是首次启动用的合成栈帧。</li>
+              <li><b>port 准备异常向量和处理器状态。</b><code>xPortStartScheduler()</code> 配置 SVC、PendSV、SysTick 优先级并启动 tick；其中 PendSV / SysTick 设为最低优先级，SVC 设为最高优先级。随后 <code>prvPortStartFirstTask()</code> 从向量表重置 MSP、准备 CONTROL 与中断状态，再执行 <code>SVC 0</code>。</li>
+              <li><b>SVC Handler 取出首任务现场。</b>Handler 读取 <code>pxCurrentTCB</code> 和该 TCB 的 <code>pxTopOfStack</code>，恢复 <code>R4-R11</code> 与初始 EXC_RETURN，把 PSP 指向合成的硬件帧，并清除 <code>BASEPRI</code>。</li>
+              <li><b>异常返回启动任务入口。</b>SVC 末尾的 <code>BX R14</code> 让 Cortex-M 从 PSP 取出合成帧；任务入口地址进入 PC，任务参数进入 R0，任务从 Thread mode 开始运行。SVC 是启动首任务的路径，日常任务间切换走 PendSV。</li>
+            </ol></div>
+          </div>
+
+          <div class="card" style="margin-top:11px"><h4>关键寄存器和栈各自负责什么</h4><div class="table-wrap"><table><thead><tr><th>对象</th><th>在任务切换中的作用</th></tr></thead><tbody>
+            <tr><td><code>PSP</code></td><td>Thread mode 的任务栈指针。硬件异常帧和 port 软件保存帧都留在被打断任务自己的栈上；恢复时改成新任务保存的栈顶。</td></tr>
+            <tr><td><code>MSP</code></td><td>Handler mode 的异常栈。SysTick、PendSV、SVC 等处理代码使用它；PendSV 还在 MSP 上暂存 <code>R0</code> 和 <code>R3</code>，跨过对 C 选择器的调用。</td></tr>
+            <tr><td><code>pxCurrentTCB</code> / <code>pxTopOfStack</code></td><td><code>pxCurrentTCB</code> 指向内核当前选中的 TCB；TCB 首字段 <code>pxTopOfStack</code> 指向该任务已保存的软件寄存器帧。切换时先存旧 TCB 的栈顶，再由 C 选择新 TCB，最后从新 TCB 取栈顶。</td></tr>
+            <tr><td><code>R0-R3</code></td><td>既承载任务函数参数，也用作汇编临时寄存器。PendSV 中 R0 暂存 PSP，R3 暂存 <code>&amp;pxCurrentTCB</code>，R2 暂存当前 TCB 地址；调用 C 选择器前需要把后续还要用的值压在 MSP 上。</td></tr>
+            <tr><td><code>R4-R11</code></td><td>硬件异常入口不会自动保存的通用寄存器。port 将它们和任务一起保存、恢复，避免一个任务覆盖另一个任务的调用现场。</td></tr>
+            <tr><td><code>R14 / EXC_RETURN</code></td><td>进入 Handler 后，R14 不再只是普通函数返回地址，而携带 Cortex-M 异常返回编码。port 按任务保存它；其中 bit[2] 表示异常返回使用 PSP 还是 MSP，bit[4] 区分基础帧与扩展浮点帧。</td></tr>
+            <tr><td>硬件异常帧</td><td>基础帧包含 <code>R0-R3</code>、<code>R12</code>、任务 LR、PC、xPSR；有活动浮点上下文时，硬件帧扩展保存低位浮点状态。EXC_RETURN 决定返回时按哪种帧恢复。</td></tr>
+            <tr><td><code>BASEPRI</code></td><td>PendSV 调用内核选择器前按配置提高屏蔽门槛，保护 Ready 链表和当前任务指针的临界更新；选择完成后清零，再恢复任务现场。</td></tr>
+          </tbody></table></div><p>可以把一次 PendSV 想成两份现场配合：任务栈保存“任务下次从哪里继续”，MSP 暂存 PendSV 自己跨函数调用要保留的临时值。它们不能混作同一条栈。</p></div>
+
+          <div class="grid two">
+            <div class="card"><h4>PendSV 汇编：逐段对应保存、选择、恢复</h4><p>关键顺序是：PSP → 保存旧任务软件现场 → 写旧 TCB 栈顶 → 调 C 选择器 → 从新 TCB 取栈顶 → 恢复寄存器 → 异常返回。代码中的 <code>tst r14, #0x10</code> 检查 EXC_RETURN 的 bit[4]；为 0 时 port 还保存 / 恢复 <code>S16-S31</code>。<code>BL vTaskSwitchContext</code> 只负责进入内核选择逻辑，不会自动替汇编换 PSP。</p>
+              <details><summary>展开 GCC ARM_CM4F 的 PendSV 关键汇编与行内说明</summary><pre><code>/* 读取被打断任务的 PSP；PendSV Handler 自己运行在 MSP 上 */
+MRS     R0, PSP
+ISB
+LDR     R3, =pxCurrentTCB       /* R3 = 全局指针变量的地址 */
+LDR     R2, [R3]                /* R2 = 被打断任务的 TCB */
+
+/* EXC_RETURN.bit[4] 清零表示扩展 FP 帧；额外保存高位 FP 寄存器 */
+TST     R14, #0x10
+IT      EQ
+VSTMDBEQ R0!, {S16-S31}
+
+/* 保存任务级 callee-saved 寄存器和 EXC_RETURN，再回写 TCB 栈顶 */
+STMDB   R0!, {R4-R11, R14}
+STR     R0, [R2]                /* TCB.pxTopOfStack = R0 */
+
+/* MSP 暂存跨 C 调用仍要用的值；BASEPRI 保护内核选择临界区 */
+STMDB   SP!, {R0, R3}
+MOV     R0, %0                  /* %0 = configMAX_SYSCALL_INTERRUPT_PRIORITY */
+MSR     BASEPRI, R0
+DSB
+ISB
+BL      vTaskSwitchContext     /* tasks.c 更新 pxCurrentTCB */
+
+/* 退出内核临界区，恢复 MSP 暂存值并取得新任务的保存栈顶 */
+MOV     R0, #0
+MSR     BASEPRI, R0
+LDMIA   SP!, {R0, R3}
+LDR     R1, [R3]                /* R1 = 新 pxCurrentTCB */
+LDR     R0, [R1]                /* R0 = 新 TCB.pxTopOfStack */
+
+/* 恢复新任务的软件帧与 PSP，BX EXC_RETURN 触发硬件异常退栈 */
+LDMIA   R0!, {R4-R11, R14}
+TST     R14, #0x10
+IT      EQ
+VLDMIAEQ R0!, {S16-S31}
+MSR     PSP, R0
+ISB
+BX      R14</code></pre></details>
+            </div>
+            <div class="card"><h4>SVC 汇编：从合成栈帧启动第一个任务</h4><p>普通 PendSV 是“保存 A 后再恢复 B”；SVC 启动没有正在运行的旧任务可保存。它从启动代码设好的 <code>pxCurrentTCB</code> 取出首任务的初始栈帧，恢复 R4-R11 和 PSP 后，通过 EXC_RETURN 让硬件从该帧加载参数与任务入口。</p>
+              <details><summary>展开首次启动代码与 SVC Handler 汇编</summary><pre><code>/* prvPortStartFirstTask：重置 MSP 并触发一次性 SVC */
+LDR     R0, =0xE000ED08        /* SCB->VTOR */
+LDR     R0, [R0]
+LDR     R0, [R0]               /* 向量表首项：初始 MSP */
+MSR     MSP, R0
+MOV     R0, #0
+MSR     CONTROL, R0
+CPSIE   I
+CPSIE   F
+DSB
+ISB
+SVC     0
+
+/* vPortSVCHandler：装入内核已选定的首任务 */
+LDR     R3, =pxCurrentTCB
+LDR     R1, [R3]                /* R1 = 首任务 TCB */
+LDR     R0, [R1]                /* R0 = 首任务初始 pxTopOfStack */
+LDMIA   R0!, {R4-R11, R14}
+MSR     PSP, R0
+ISB
+MOV     R0, #0
+MSR     BASEPRI, R0
+BX      R14                     /* EXC_RETURN: Thread mode + PSP */</code></pre></details>
+              <p>创建任务时，<code>portINITIAL_EXC_RETURN</code> 在本 port 中是 <code>0xFFFFFFFD</code>，代表返回 Thread mode、使用 PSP 和基础帧；初始帧中的 <code>R0</code> 是任务参数，<code>PC</code> 是任务入口。若任务函数错误地直接 return，初始 LR 指向 port 的错误处理入口。</p>
+            </div>
+          </div>
+
+          <p class="note" style="margin-top:11px"><strong>读源码时的最终边界：</strong>“任务选择完成”发生在 <code>vTaskSwitchContext()</code> 更新 <code>pxCurrentTCB</code> 时；“CPU 真正换到新任务”还要等 port 把新 TCB 的栈顶装入 PSP、执行 <code>BX EXC_RETURN</code>，再由硬件恢复新任务的异常帧。章节上方的寄存器动画可逐步对照同一条 PendSV / SVC 路径。</p>
+          <div class="source-links"><a href="../../FreeRTOS/FreeRTOS-Kernel/include/task.h">task.h · taskYIELD</a><a href="../../FreeRTOS/FreeRTOS-Kernel/portable/GCC/ARM_CM4F/portmacro.h">portmacro.h · portYIELD / portYIELD_FROM_ISR</a><a href="../../FreeRTOS/FreeRTOS-Kernel/tasks.c">tasks.c · xTaskIncrementTick / vTaskSwitchContext</a><a href="../../FreeRTOS/FreeRTOS-Kernel/portable/GCC/ARM_CM4F/port.c">port.c · SysTick / PendSV / SVC</a><a href="../../FreeRTOS/FreeRTOS-Kernel/include/portable.h">portable.h · xPortStartScheduler / pxPortInitialiseStack</a><a href="#cortexContextLab">回到寄存器逐步动画 ↑</a></div>
+        </article>
+        <article class="card scheduler-source-appendix" id="scheduler-source-appendix">
+          <div class="scheduler-algorithm-head"><div><span class="kicker">KERNEL SCHEDULER SOURCE · tasks.c / port</span><h3>内核调度关键源码：按一次调度的顺序读</h3><p>先看任务怎样进入或离开各条链表，再看 tick / 事件如何提出切换请求，最后看内核如何选中任务。以下都是本仓库源码的关键语句摘录；点开每项可读代码和逐步说明，未展开时保持折叠。</p></div><span class="scheduler-source-badge">单核通用路径 · 默认折叠</span></div>
+          <div class="scheduler-source-flow" aria-label="调度源码阅读顺序"><span><b>01 · 状态迁移</b>就绪 / 阻塞 / 挂起 / 清理</span><span><b>02 · 到期或唤醒</b>进入 Ready</span><span><b>03 · 请求调度</b>yield pending</span><span><b>04 · 选择任务</b>优先级 + 同级游标</span><span><b>05 · 移植层</b>PendSV 保存 / 恢复</span></div>
+          <p class="note"><strong>阅读范围：</strong>下面按单核内核路径解释；通用选择器、位图优化选择器和 ARM_CM4F port 会通过配置分支切换。源码中的 trace、统计和多核分支可能未完整展开，代码框会注明摘录范围；要看 PendSV / SVC 的完整寄存器流程，可展开上方“任务切换的完整现场路径”。</p>
+          <div class="scheduler-source-details">
+            <details class="scheduler-source-item">
+              <summary><span>01 · 任务进入 Ready，内核从 Ready 中选出下一个任务</span><small>tasks.c · prvAddTaskToReadyList / taskSELECT_HIGHEST_PRIORITY_TASK / vTaskSwitchContext</small></summary>
+              <div class="scheduler-source-body">
+                <p>每个任务只有一个状态节点 <code>xStateListItem</code>。它处于 Ready 时挂在对应优先级的 Ready list；当前正在运行的任务通常也仍留在该链表中。选任务时先确定最高的非空优先级，再通过该链表的 <code>pxIndex</code> 游标取下一个 owner，实现同优先级轮转。</p>
+                <h4>把任务放进对应优先级的 Ready list（省略 trace 包装）</h4>
+                <pre><code>#define prvAddTaskToReadyList( pxTCB ) \
+do { \
+    taskRECORD_READY_PRIORITY( ( pxTCB )-&gt;uxPriority ); \
+    listINSERT_END( &amp;pxReadyTasksLists[ ( pxTCB )-&gt;uxPriority ], &amp;( ( pxTCB )-&gt;xStateListItem ) ); \
+} while( 0 )</code></pre>
+                <h4>通用实现：从已记录的最高优先级向下找非空链表</h4>
+                <pre><code>UBaseType_t uxTopPriority = uxTopReadyPriority;
+
+while ( listLIST_IS_EMPTY( &amp;pxReadyTasksLists[ uxTopPriority ] ) != pdFALSE )
+{
+    configASSERT( uxTopPriority );
+    --uxTopPriority;
+}
+
+listGET_OWNER_OF_NEXT_ENTRY( pxCurrentTCB, &amp;pxReadyTasksLists[ uxTopPriority ] );
+uxTopReadyPriority = uxTopPriority;</code></pre>
+                <h4>提交选择结果：挂起调度时先记下 yield</h4>
+                <pre><code>if ( uxSchedulerSuspended != ( UBaseType_t ) 0U )
+{
+    xYieldPendings[ 0 ] = pdTRUE;
+}
+else
+{
+    xYieldPendings[ 0 ] = pdFALSE;
+    taskSELECT_HIGHEST_PRIORITY_TASK(); /* 更新 pxCurrentTCB */
+    traceTASK_SWITCHED_IN();
+}</code></pre>
+                <p>当 <code>configUSE_PORT_OPTIMISED_TASK_SELECTION</code> 开启时，内核用 port 的位图宏找最高优先级；关闭时使用上面的通用扫描。两条路径最后都调用 <code>listGET_OWNER_OF_NEXT_ENTRY()</code>，所以“选哪个优先级”和“同级选哪个任务”是两个步骤。</p>
+                <div class="source-links"><a href="../../FreeRTOS/FreeRTOS-Kernel/tasks.c">tasks.c · Ready 插入与选择</a><a href="../../FreeRTOS/FreeRTOS-Kernel/list.c">list.c · listGET_OWNER_OF_NEXT_ENTRY</a><a href="#scheduler">回到调度动画 ↑</a></div>
+              </div>
+            </details>
+
+            <details class="scheduler-source-item">
+              <summary><span>02 · 延时或等待对象：当前任务离开 Ready</span><small>tasks.c · prvAddCurrentTaskToDelayedList / 事件等待入口</small></summary>
+              <div class="scheduler-source-body">
+                <p><code>vTaskDelay()</code> 只等待 tick，所以只移动状态节点；等待队列、信号量等对象时，还要把事件节点挂到对象等待链表。下面展示两个入口的核心调用。</p>
+                <h4>单纯延时：从 Ready 移入延时链表，然后请求调度</h4>
+                <pre><code>if ( xTicksToDelay &gt; ( TickType_t ) 0U )
+{
+    vTaskSuspendAll();
+    prvAddCurrentTaskToDelayedList( xTicksToDelay, pdFALSE );
+    xAlreadyYielded = xTaskResumeAll();
+}
+
+if ( xAlreadyYielded == pdFALSE )
+{
+    taskYIELD_WITHIN_API();
+}</code></pre>
+                <h4>等待对象且带超时：事件节点和状态节点各司其职</h4>
+                <pre><code>vListInsert( pxEventList, &amp;pxCurrentTCB-&gt;xEventListItem );
+prvAddCurrentTaskToDelayedList( xTicksToWait, pdTRUE );</code></pre>
+                <p><code>prvAddCurrentTaskToDelayedList()</code> 会先从 Ready 摘下 <code>xStateListItem</code>；有限等待按预计唤醒 tick 排入当前 / 溢出延时链表。若对象 API 允许无限等待且满足 <code>portMAX_DELAY</code> 配置条件，状态节点改入 <code>xSuspendedTaskList</code>。等待对象时的 <code>xEventListItem</code> 仍单独留在对象链表中。</p>
+                <h4>Event Groups：无序链表还在事件节点里保存等待条件</h4>
+                <pre><code>/* event_groups.c：条件暂未满足时登记等待位 */
+vTaskPlaceOnUnorderedEventList( &amp;pxEventBits-&gt;xTasksWaitingForBits, ( uxBitsToWaitFor | uxControlBits ), xTicksToWait );
+
+/* tasks.c：把条件写入 xEventListItem，再挂入无序链表 */
+listSET_LIST_ITEM_VALUE( &amp;pxCurrentTCB-&gt;xEventListItem, xItemValue | taskEVENT_LIST_ITEM_VALUE_IN_USE );
+listINSERT_END( pxEventList, &amp;pxCurrentTCB-&gt;xEventListItem );
+prvAddCurrentTaskToDelayedList( xTicksToWait, pdTRUE );</code></pre>
+                <p>因此普通队列 / 信号量等待链表可以按优先级取队首；Event Groups 则必须检查每个节点中保存的位条件，不能只看队首。两种等待最后都会用状态节点离开 Ready，并在条件满足或超时后回到 Ready。</p>
+                <h4>状态节点实际迁移：prvAddCurrentTaskToDelayedList（核心逻辑）</h4>
+                <pre><code>const TickType_t xConstTickCount = xTickCount;
+uxListRemove( &amp;pxCurrentTCB-&gt;xStateListItem );
+
+#if ( INCLUDE_vTaskSuspend == 1 )
+if ( ( xTicksToWait == portMAX_DELAY ) &amp;&amp; ( xCanBlockIndefinitely != pdFALSE ) )
+{
+    listINSERT_END( &amp;xSuspendedTaskList, &amp;pxCurrentTCB-&gt;xStateListItem );
+}
+else
+#endif
+{
+    xTimeToWake = xConstTickCount + xTicksToWait;
+    listSET_LIST_ITEM_VALUE( &amp;pxCurrentTCB-&gt;xStateListItem, xTimeToWake );
+
+    if ( xTimeToWake &lt; xConstTickCount )
+    {
+        vListInsert( pxOverflowDelayedList, &amp;pxCurrentTCB-&gt;xStateListItem );
+    }
+    else
+    {
+        vListInsert( pxDelayedList, &amp;pxCurrentTCB-&gt;xStateListItem );
+        if ( xTimeToWake &lt; xNextTaskUnblockTime )
+        {
+            xNextTaskUnblockTime = xTimeToWake;
+        }
+    }
+}</code></pre>
+                <p>这是删去 trace 和 Ready 优先级位图维护后的核心分支。唤醒 tick 加法发生回绕时，任务放入溢出延时链表；tick 计数回到 0 后，内核交换当前 / 溢出链表角色，再继续按链表头检查到期任务。</p>
+                <div class="source-links"><a href="../../FreeRTOS/FreeRTOS-Kernel/tasks.c">tasks.c · 延时迁移 / 有序与无序等待</a><a href="../../FreeRTOS/FreeRTOS-Kernel/queue.c">queue.c · 队列等待 API</a><a href="../../FreeRTOS/FreeRTOS-Kernel/event_groups.c">event_groups.c · 等待事件位</a></div>
+              </div>
+            </details>
+
+            <details class="scheduler-source-item">
+              <summary><span>03 · Tick 到期：扫描延时链表头部并决定是否抢占</span><small>tasks.c · xTaskIncrementTick</small></summary>
+              <div class="scheduler-source-body">
+                <p>延时链表按唤醒 tick 排序，因此每次 tick 不用扫描全部任务：只有达到 <code>xNextTaskUnblockTime</code> 时才检查链表头；头部尚未到期即可停止。到期任务回 Ready 后，抢占配置再判断是否需要切换。</p>
+                <pre><code>const TickType_t xConstTickCount = xTickCount + ( TickType_t ) 1;
+xTickCount = xConstTickCount;
+
+/* tick 回绕到 0 时，交换当前与溢出延时链表 */
+if ( xConstTickCount == ( TickType_t ) 0U )
+{
+    taskSWITCH_DELAYED_LISTS();
+}
+
+if ( xConstTickCount &gt;= xNextTaskUnblockTime )
+{
+    pxTCB = listGET_OWNER_OF_HEAD_ENTRY( pxDelayedTaskList );
+    xItemValue = listGET_LIST_ITEM_VALUE( &amp;pxTCB-&gt;xStateListItem );
+
+    if ( xConstTickCount &lt; xItemValue )
+    {
+        xNextTaskUnblockTime = xItemValue;
+        break;
+    }
+
+    listREMOVE_ITEM( &amp;pxTCB-&gt;xStateListItem );
+    if ( listLIST_ITEM_CONTAINER( &amp;pxTCB-&gt;xEventListItem ) != NULL )
+    {
+        listREMOVE_ITEM( &amp;pxTCB-&gt;xEventListItem );
+    }
+    prvAddTaskToReadyList( pxTCB );
+
+#if ( configUSE_PREEMPTION == 1 )
+    if ( pxTCB-&gt;uxPriority &gt; pxCurrentTCB-&gt;uxPriority )
+    {
+        xSwitchRequired = pdTRUE;
+    }
+#endif
+}</code></pre>
+                <p>上面压缩了源码里的循环、tick 回绕和多核分支。若同时启用抢占与时间片，函数还会检查当前优先级 Ready list 是否有多个任务；因此 tick 可能请求同级轮转，也可能完全不触发切换。这个函数只返回切换请求，不负责保存寄存器。</p>
+                <h4>辅助函数：重新计算最近的唤醒时间</h4>
+                <pre><code>if ( listLIST_IS_EMPTY( pxDelayedTaskList ) != pdFALSE )
+{
+    xNextTaskUnblockTime = portMAX_DELAY;
+}
+else
+{
+    xNextTaskUnblockTime = listGET_ITEM_VALUE_OF_HEAD_ENTRY( pxDelayedTaskList );
+}</code></pre>
+                <p><code>prvResetNextTaskUnblockTime()</code> 在延时链表头发生变化时更新这个缓存值；tick 到来后，内核先比较它，尚未到期就可以跳过链表扫描。tickless idle 也会用它估算下一次需要唤醒的时间。</p>
+                <div class="source-links"><a href="../../FreeRTOS/FreeRTOS-Kernel/tasks.c">tasks.c · xTaskIncrementTick / prvResetNextTaskUnblockTime</a><a href="#context-switch-guide">查看 PendSV 完整现场路径 ↑</a></div>
+              </div>
+            </details>
+
+            <details class="scheduler-source-item">
+              <summary><span>04 · 事件到达或主动解除阻塞：任务回到 Ready</span><small>tasks.c · xTaskRemoveFromEventList / vTaskRemoveFromUnorderedEventList / xTaskAbortDelay</small></summary>
+              <div class="scheduler-source-body">
+                <p>队列或信号量状态改变时，对象代码调用内核解除等待路径。普通事件等待链表按任务优先级组织，所以函数取队首等待者；它摘除事件节点和状态节点，再加入该任务优先级的 Ready list。</p>
+                <pre><code>pxUnblockedTCB = listGET_OWNER_OF_HEAD_ENTRY( pxEventList );
+listREMOVE_ITEM( &amp;pxUnblockedTCB-&gt;xEventListItem );
+
+if ( uxSchedulerSuspended == ( UBaseType_t ) 0U )
+{
+    listREMOVE_ITEM( &amp;pxUnblockedTCB-&gt;xStateListItem );
+    prvAddTaskToReadyList( pxUnblockedTCB );
+}
+else
+{
+    listINSERT_END( &amp;xPendingReadyList, &amp;pxUnblockedTCB-&gt;xEventListItem );
+}
+
+if ( pxUnblockedTCB-&gt;uxPriority &gt; pxCurrentTCB-&gt;uxPriority )
+{
+    xYieldPendings[ 0 ] = pdTRUE;
+    xReturn = pdTRUE;
+}
+else
+{
+    xReturn = pdFALSE;
+}</code></pre>
+                <p>如果调度器正挂起，内核暂时不能整理 Ready / 状态链表，于是先把事件节点放入 <code>xPendingReadyList</code>；恢复调度时再统一完成迁移。被唤醒只表示“可以竞争 CPU”，不是立即开始运行。</p>
+                <h4>另一条唤醒路径：Event Groups 使用无序等待链表</h4>
+                <p>队列 / 信号量等待链表按优先级排序，通常唤醒队首一个任务。Event Groups 的等待节点还带着任务要等的事件位和匹配条件，链表本身不按优先级排序；事件组逐项检查条件，可能一次唤醒多个任务。</p>
+                <pre><code>/* event_groups.c：找到满足条件的等待者后 */
+vTaskRemoveFromUnorderedEventList( pxListItem, xItemValue );
+
+/* tasks.c：解除该任务的等待状态 */
+pxUnblockedTCB = listGET_LIST_ITEM_OWNER( pxEventListItem );
+listREMOVE_ITEM( pxEventListItem );
+listREMOVE_ITEM( &amp;pxUnblockedTCB-&gt;xStateListItem );
+prvAddTaskToReadyList( pxUnblockedTCB );
+
+if ( pxUnblockedTCB-&gt;uxPriority &gt; pxCurrentTCB-&gt;uxPriority )
+{
+    xYieldPendings[ 0 ] = pdTRUE;
+}</code></pre>
+                <p>这条路径要求调用时调度器已挂起：任务直接回到 Ready 并记录待切换；外层 <code>xTaskResumeAll()</code> 恢复调度后再兑现切换请求。与队列唤醒相比，差异在“怎样找到满足条件的等待者”；进入 Ready 后，仍由同一个优先级选择器决定谁运行。</p>
+                <h4>应用主动提前解除等待：xTaskAbortDelay（配置可选，省略挂起 / 临界区包装）</h4>
+                <pre><code>if ( eTaskGetState( xTask ) == eBlocked )
+{
+    uxListRemove( &amp;pxTCB-&gt;xStateListItem );
+    if ( listLIST_ITEM_CONTAINER( &amp;pxTCB-&gt;xEventListItem ) != NULL )
+    {
+        uxListRemove( &amp;pxTCB-&gt;xEventListItem );
+        pxTCB-&gt;ucDelayAborted = ( uint8_t ) pdTRUE;
+    }
+    prvAddTaskToReadyList( pxTCB );
+    /* 更高优先级时记录 yield，恢复调度器后再兑现。 */
+}
+xTaskResumeAll();</code></pre>
+                <p><code>xTaskAbortDelay()</code> 不是事件到达或超时，而是应用主动取消目标任务的阻塞；如果它原本在等对象，也会摘掉对象事件节点，并标记这次等待已被中止。该 API 受 <code>INCLUDE_xTaskAbortDelay</code> 控制。</p>
+                <div class="source-links"><a href="../../FreeRTOS/FreeRTOS-Kernel/tasks.c">tasks.c · 有序 / 无序事件唤醒 / xTaskAbortDelay</a><a href="../../FreeRTOS/FreeRTOS-Kernel/queue.c">queue.c · 队列唤醒等待者</a><a href="../../FreeRTOS/FreeRTOS-Kernel/event_groups.c">event_groups.c · 检查并唤醒等待任务</a></div>
+              </div>
+            </details>
+
+            <details class="scheduler-source-item">
+              <summary><span>05 · 显式挂起、恢复任务，以及删除后的 Idle 清理</span><small>tasks.c · vTaskSuspend / vTaskResume / xTaskResumeFromISR / vTaskDelete</small></summary>
+              <div class="scheduler-source-body">
+                <p><code>vTaskSuspend()</code> 是显式挂起：先从原状态链表摘除状态节点；若任务正等对象，也摘掉事件节点；之后把状态节点插入 <code>xSuspendedTaskList</code>。<code>vTaskResume()</code> 则把确实处于显式挂起的任务移回 Ready。</p>
+                <pre><code>/* vTaskSuspend：核心状态迁移 */
+uxListRemove( &amp;pxTCB-&gt;xStateListItem );
+if ( listLIST_ITEM_CONTAINER( &amp;pxTCB-&gt;xEventListItem ) != NULL )
+{
+    uxListRemove( &amp;pxTCB-&gt;xEventListItem );
+}
+vListInsertEnd( &amp;xSuspendedTaskList, &amp;pxTCB-&gt;xStateListItem );
+
+/* vTaskResume：从挂起状态回 Ready */
+if ( prvTaskIsTaskSuspended( pxTCB ) != pdFALSE )
+{
+    uxListRemove( &amp;pxTCB-&gt;xStateListItem );
+    prvAddTaskToReadyList( pxTCB );
+    taskYIELD_ANY_CORE_IF_USING_PREEMPTION( pxTCB );
+}</code></pre>
+                <h4>ISR 恢复显式挂起任务：返回值告诉调用方是否请求切换</h4>
+                <pre><code>if ( prvTaskIsTaskSuspended( pxTCB ) != pdFALSE &amp;&amp; uxSchedulerSuspended == ( UBaseType_t ) 0U )
+{
+    if( pxTCB-&gt;uxPriority &gt; pxCurrentTCB-&gt;uxPriority )
+    {
+        xYieldRequired = pdTRUE;
+        xYieldPendings[ 0 ] = pdTRUE;
+    }
+    uxListRemove( &amp;pxTCB-&gt;xStateListItem );
+    prvAddTaskToReadyList( pxTCB );
+}
+
+return xYieldRequired;</code></pre>
+                <p>这是 <code>xTaskResumeFromISR()</code> 在单核、调度器未挂起时的核心路径（函数受配置开关控制）。ISR 应检查返回值；若为真，再调用 <code>portYIELD_FROM_ISR()</code>，让 port 在中断退出时触发 PendSV。它只恢复显式挂起的任务，不代替队列或事件组的对象等待 / 唤醒机制。</p>
+                <p>删除正在运行的自身任务时，内核不能立刻回收它正在使用的栈，因此先将其状态节点加入 <code>xTasksWaitingTermination</code>。Idle task 在 <code>prvCheckTasksWaitingTermination()</code> 中取出待清理任务，再交给 <code>prvDeleteTCB()</code> 释放适用的内存；静态缓冲区仍由应用管理。</p>
+                <pre><code>/* vTaskDelete：当前任务要等切出后才能清理 */
+vListInsertEnd( &amp;xTasksWaitingTermination, &amp;pxTCB-&gt;xStateListItem );
+++uxDeletedTasksWaitingCleanUp;
+
+/* Idle task 的清理路径 */
+pxTCB = listGET_OWNER_OF_HEAD_ENTRY( &amp;xTasksWaitingTermination );
+uxListRemove( &amp;pxTCB-&gt;xStateListItem );
+--uxCurrentNumberOfTasks;
+--uxDeletedTasksWaitingCleanUp;
+prvDeleteTCB( pxTCB );</code></pre>
+                <div class="source-links"><a href="../../FreeRTOS/FreeRTOS-Kernel/tasks.c">tasks.c · vTaskSuspend / vTaskResume / xTaskResumeFromISR / Idle 清理</a><a href="../../FreeRTOS/FreeRTOS-Kernel/portable/GCC/ARM_CM4F/portmacro.h">portmacro.h · portYIELD_FROM_ISR</a><a href="#scheduler">回到多链表协同动画 ↑</a></div>
+              </div>
+            </details>
+
+            <details class="scheduler-source-item">
+              <summary><span>06 · 调度器挂起期间的唤醒：恢复时整理 Pending Ready</span><small>tasks.c · xTaskResumeAll</small></summary>
+              <div class="scheduler-source-body">
+                <p><code>vTaskSuspendAll()</code> 只暂停调度，不等于关中断。挂起期间 ISR 仍可能唤醒任务，但唤醒任务先进入 Pending Ready；直到最外层 <code>xTaskResumeAll()</code> 才安全地移除两个节点、正式加入 Ready。</p>
+                <pre><code>while ( listLIST_IS_EMPTY( &amp;xPendingReadyList ) == pdFALSE )
+{
+    pxTCB = listGET_OWNER_OF_HEAD_ENTRY( &amp;xPendingReadyList );
+    listREMOVE_ITEM( &amp;pxTCB-&gt;xEventListItem );
+    listREMOVE_ITEM( &amp;pxTCB-&gt;xStateListItem );
+    prvAddTaskToReadyList( pxTCB );
+
+    if ( pxTCB-&gt;uxPriority &gt; pxCurrentTCB-&gt;uxPriority )
+    {
+        xYieldPendings[ xCoreID ] = pdTRUE;
+    }
+}
+
+while ( xPendedCounts &gt; 0U )
+{
+    if ( xTaskIncrementTick() != pdFALSE )
+    {
+        xYieldPendings[ xCoreID ] = pdTRUE;
+    }
+    --xPendedCounts;
+}
+
+if ( xYieldPendings[ xCoreID ] != pdFALSE )
+{
+    taskYIELD_TASK_CORE_IF_USING_PREEMPTION( pxCurrentTCB );
+}</code></pre>
+                <p>恢复时不只处理 Pending Ready，也会补跑挂起期间累计的 tick，使超时与下一次唤醒时间保持正确。最终是否 yield 仍受抢占配置和当前 Ready 状态影响。</p>
+                <div class="source-links"><a href="../../FreeRTOS/FreeRTOS-Kernel/tasks.c">tasks.c · xTaskResumeAll</a><a href="#scheduler">查看 Pending Ready 动画 ↑</a></div>
+              </div>
+            </details>
+
+            <details class="scheduler-source-item">
+              <summary><span>07 · 请求交给 port：何时从内核逻辑进入 PendSV</span><small>task.h / portmacro.h / port.c</small></summary>
+              <div class="scheduler-source-body">
+                <p><code>taskYIELD()</code> 最终调用 port 的 yield 宏。ARM_CM4F 的 <code>portYIELD()</code> 只置位 PendSV 并执行屏障；SysTick 也是先调用 <code>xTaskIncrementTick()</code>，只有返回“需要切换”时才置位 PendSV。真正保存旧任务和恢复新任务的汇编见上方完整现场路径。</p>
+                <pre><code>/* task.h */
+#define taskYIELD()    portYIELD()
+
+/* ARM_CM4F portmacro.h：主动请求切换 */
+#define portYIELD() \
+{ \
+    portNVIC_INT_CTRL_REG = portNVIC_PENDSVSET_BIT; \
+    __asm volatile ( "dsb" ::: "memory" ); \
+    __asm volatile ( "isb" ); \
+}
+
+/* ISR only requests a switch when xHigherPriorityTaskWoken is true */
+#define portYIELD_FROM_ISR( x )    portEND_SWITCHING_ISR( x )
+
+/* ARM_CM4F port.c：tick 只在内核提出请求时挂起 PendSV */
+if ( xTaskIncrementTick() != pdFALSE )
+{
+    portNVIC_INT_CTRL_REG = portNVIC_PENDSVSET_BIT;
+}</code></pre>
+                <p>所以调度可以分成两个问题：内核先决定“是否需要换、下一个是谁”；port 再决定“如何保存当前寄存器并恢复目标任务”。SVC 用于启动第一个任务，普通任务之间的交接走 PendSV。</p>
+                <div class="source-links"><a href="../../FreeRTOS/FreeRTOS-Kernel/include/task.h">task.h · taskYIELD</a><a href="../../FreeRTOS/FreeRTOS-Kernel/portable/GCC/ARM_CM4F/portmacro.h">portmacro.h · portYIELD / portYIELD_FROM_ISR</a><a href="../../FreeRTOS/FreeRTOS-Kernel/portable/GCC/ARM_CM4F/port.c">port.c · SysTick / PendSV / SVC</a><a href="#scheduler-source-vtaskswitchcontext">展开 vTaskSwitchContext 源码 ↓</a><a href="#context-switch-guide">阅读 PendSV / SVC 完整现场说明 ↑</a></div>
+              </div>
+            </details>
+
+            <details class="scheduler-source-item" id="scheduler-source-vtaskswitchcontext">
+              <summary><span>08 · PendSV 进入内核选择器：vTaskSwitchContext</span><small>tasks.c · vTaskSwitchContext / taskSELECT_HIGHEST_PRIORITY_TASK</small></summary>
+              <div class="scheduler-source-body">
+                <p>在本仓库的 GCC ARM_CM4F 路径中，PendSV 先保存旧任务 A 的寄存器现场并把 A 的栈顶写回 TCB，然后调用这个 C 函数。它负责让内核决定下一个任务；寄存器和 PSP 的实际保存 / 恢复仍由 port 汇编完成。</p>
+                <h4>单核源码的核心分支（省略 trace、运行时间统计等外围代码）</h4>
+                <pre><code>void vTaskSwitchContext( void )
+{
+    if ( uxSchedulerSuspended != ( UBaseType_t ) 0U )
+    {
+        /* 调度器挂起：先记下请求，暂不选择任务。 */
+        xYieldPendings[ 0 ] = pdTRUE;
+    }
+    else
+    {
+        xYieldPendings[ 0 ] = pdFALSE;
+        traceTASK_SWITCHED_OUT();
+
+        /* 源码在这里还可做栈检查、统计和任务局部状态保存。 */
+        taskCHECK_FOR_STACK_OVERFLOW();
+
+        /* 按配置选择最高优先级 Ready 任务，并更新 pxCurrentTCB。 */
+        taskSELECT_HIGHEST_PRIORITY_TASK();
+        traceTASK_SWITCHED_IN();
+        portTASK_SWITCH_HOOK( pxCurrentTCB );
+
+        /* 配置开启时，切换新任务的 errno / TLS 等运行环境。 */
+    }
+}</code></pre>
+                <ul><li><b>调度器正常运行：</b><code>taskSELECT_HIGHEST_PRIORITY_TASK()</code> 找到最高非空 Ready 优先级，并从对应链表取下一个 owner；在这个单核实现中，选择结果写入全局 <code>pxCurrentTCB</code>。优先级选择和同级游标细节见第 01 项。</li><li><b>调度器仍挂起：</b>函数不改选当前任务，只设置 <code>xYieldPendings[0]</code>。等 <code>xTaskResumeAll()</code> 整理 Pending Ready 和积压 tick 后，再决定是否重新请求切换。</li><li><b>函数返回之后：</b>CPU 还在 PendSV Handler 中。port 汇编读取新 <code>pxCurrentTCB</code> 指向 TCB 的 <code>pxTopOfStack</code>，恢复新任务现场并异常返回；到这时新任务才真正继续执行。</li></ul>
+                <div class="source-links"><a href="../../FreeRTOS/FreeRTOS-Kernel/tasks.c">tasks.c · vTaskSwitchContext（源码）</a><a href="../../FreeRTOS/FreeRTOS-Kernel/portable/GCC/ARM_CM4F/port.c">port.c · PendSV 调用点与现场恢复</a><a href="#context-switch-guide">对照寄存器现场完整路径 ↑</a></div>
+              </div>
+            </details>
+          </div>
+        </article>
       </section>
 
       <section class="chapter" id="lifecycle">
@@ -666,7 +1440,7 @@ static inline uint8_t ucPortCountLeadingZeros( uint32_t ulBitmap )
     TickType_t lastWake = xTaskGetTickCount();
     const TickType_t period = pdMS_TO_TICKS( 20 );
 
-    for( ;; )
+    for ( ;; )
     {
         read_sensor();
         xTaskDelayUntil( &amp;lastWake, period );
@@ -692,9 +1466,7 @@ static inline uint8_t ucPortCountLeadingZeros( uint32_t ulBitmap )
             <div class="card"><h3>静态创建：应用提供 TCB 和栈</h3><pre>static StaticTask_t xWorkerTCB;
 static StackType_t xWorkerStack[ 512 ];
 
-TaskHandle_t xWorker = xTaskCreateStatic(
-    vWorkerTask, "Worker", 512, NULL, 2,
-    xWorkerStack, &amp;xWorkerTCB );</pre><p>TCB 存储和栈数组由应用提供，具有静态生命周期；此任务创建不从 FreeRTOS heap 分配这两块内存。</p></div>
+TaskHandle_t xWorker = xTaskCreateStatic( vWorkerTask, "Worker", 512, NULL, 2, xWorkerStack, &amp;xWorkerTCB );</pre><p>TCB 存储和栈数组由应用提供，具有静态生命周期；此任务创建不从 FreeRTOS heap 分配这两块内存。</p></div>
             <div class="card"><h3>动态创建：配置总 heap，再设置单任务栈深</h3><pre>/* FreeRTOSConfig.h · 以 heap_4 为例 */
 #define configSUPPORT_DYNAMIC_ALLOCATION    1
 #define configTOTAL_HEAP_SIZE               ( ( size_t ) ( 20U * 1024U ) )
@@ -703,11 +1475,9 @@ TaskHandle_t xWorker = xTaskCreateStatic(
 const configSTACK_DEPTH_TYPE uxWorkerStackDepth = 512;
 TaskHandle_t xWorker = NULL;
 
-BaseType_t xResult = xTaskCreate(
-    vWorkerTask, "Worker", uxWorkerStackDepth, NULL, 2,
-    &amp;xWorker );
+BaseType_t xResult = xTaskCreate( vWorkerTask, "Worker", uxWorkerStackDepth, NULL, 2, &amp;xWorker );
 
-if( xResult != pdPASS )
+if ( xResult != pdPASS )
 {
     /* 创建失败：执行错误处理 */
 }</pre><p><code>uxWorkerStackDepth</code> 是单个任务的栈深，单位为 <code>StackType_t</code> 元素；内核按“深度 × <code>sizeof(StackType_t)</code>”从 heap 申请栈空间，并另外申请 TCB。<code>configTOTAL_HEAP_SIZE</code> 是 heap_1 / heap_2 / heap_4 使用的总内存池大小，供任务栈、TCB 和其他动态对象共同使用，不是单个任务的栈大小；heap_5 改用内存区域配置，heap_3 使用 C 库的 <code>malloc</code>。堆不足时检查 <code>xTaskCreate()</code> 是否返回 <code>pdPASS</code>。</p></div>
@@ -1298,12 +2068,16 @@ volatile size_t taskControlBlockBytes = sizeof( *pxNewTCB ); /* 临时测量 */<
     const sections = [...document.querySelectorAll('.chapter, #mechanism-lab')];
     const progress = document.getElementById('progress');
     const menuBtn = document.getElementById('menuBtn');
+    const rail = document.querySelector('.rail');
     const nav = document.getElementById('nav');
-    menuBtn.addEventListener('click', () => { const open = nav.classList.toggle('open'); menuBtn.setAttribute('aria-expanded', String(open)); });
+    const setMenuOpen = open => { rail.classList.toggle('open', open); menuBtn.setAttribute('aria-expanded', String(open)); menuBtn.setAttribute('aria-label', open ? '关闭章节目录' : '打开章节目录'); };
+    menuBtn.addEventListener('click', () => setMenuOpen(!rail.classList.contains('open')));
+    document.addEventListener('click', event => { if (rail.classList.contains('open') && !rail.contains(event.target) && !menuBtn.contains(event.target)) setMenuOpen(false); });
+    document.addEventListener('keydown', event => { if (event.key === 'Escape' && rail.classList.contains('open')) { setMenuOpen(false); menuBtn.focus({ preventScroll:true }); } });
     const observer = new IntersectionObserver(entries => entries.forEach(entry => { if (entry.isIntersecting) { navLinks.forEach(a => a.classList.toggle('active', a.hash === '#' + entry.target.id)); } }), { rootMargin: '-20% 0px -65% 0px' });
     sections.forEach(section => observer.observe(section));
     window.addEventListener('scroll', () => { const max = document.documentElement.scrollHeight - innerHeight; progress.style.width = (max > 0 ? scrollY / max * 100 : 0) + '%'; }, { passive:true });
-    navLinks.forEach(a => a.addEventListener('click', () => nav.classList.remove('open')));
+    navLinks.forEach(a => a.addEventListener('click', () => setMenuOpen(false)));
     document.getElementById('sourceToggle').addEventListener('click', event => { const on = document.body.classList.toggle('show-source'); event.currentTarget.setAttribute('aria-pressed', String(on)); event.currentTarget.textContent = on ? '隐藏源码细节' : '显示源码细节'; });
 
     const scenario = document.getElementById('scenario');
@@ -1341,11 +2115,12 @@ volatile size_t taskControlBlockBytes = sizeof( *pxNewTCB ); /* 临时测量 */<
     let stage = 0, playback = null;
     const definitions = {
       wake: [{id:'A',name:'采集任务 A',priority:3,rank:'相对高'}, {id:'B',name:'处理任务 B',priority:2,rank:'相对中'}, {id:'I',name:'Idle',priority:0,rank:'最低 / 内核空闲'}],
+      lists: [{id:'A',name:'生产任务 A',priority:4,rank:'相对高'}, {id:'B',name:'后台任务 B',priority:2,rank:'相对低'}, {id:'C',name:'周期任务 C',priority:3,rank:'中高'}, {id:'D',name:'队列接收 D',priority:5,rank:'最高'}, {id:'E',name:'传感任务 E',priority:6,rank:'最高'}, {id:'F',name:'已删除任务 F',priority:1,rank:'低'}, {id:'G',name:'长期等待 G',priority:2,rank:'相对低'}, {id:'I',name:'Idle',priority:0,rank:'最低 / 内核空闲'}],
       timeout: [{id:'A',name:'周期任务 A',priority:3,rank:'相对高'}, {id:'B',name:'背景任务 B',priority:1,rank:'相对低'}, {id:'I',name:'Idle',priority:0,rank:'最低 / 内核空闲'}],
       equal: [{id:'A',name:'同级任务 A',priority:2,rank:'同级'}, {id:'B',name:'同级任务 B',priority:2,rank:'同级'}, {id:'I',name:'Idle',priority:0,rank:'最低 / 内核空闲'}],
       startup: [{id:'A',name:'首个应用任务 A',priority:1,rank:'应用任务'}, {id:'I',name:'Idle',priority:0,rank:'最低 / 内核空闲'}]
     };
-    const makeStep = (title,copy,states,current,algo,eventTitle,eventCopy,opts={}) => ({title,copy,states,current,selected:opts.selected||current,algo,algoFocus:opts.algoFocus||({pick:'scan',switch:'switch',port:'switch'}[algo]||algo),eventTitle,eventCopy,delay:opts.delay||[],event:opts.event||[],action:opts.action||'选择当前任务',icon:opts.icon||'◈',detail:opts.detail||[copy,`观察状态变化：${eventCopy}`,`本帧对应内核路径：${algo}`],source:opts.source||'FreeRTOS-Kernel/tasks.c'});
+    const makeStep = (title,copy,states,current,algo,eventTitle,eventCopy,opts={}) => ({title,copy,states,current,selected:opts.selected||current,algo,algoFocus:opts.algoFocus||({pick:'scan',switch:'switch',port:'switch'}[algo]||algo),eventTitle,eventCopy,delay:opts.delay||[],event:opts.event||[],suspended:opts.suspended||[],termination:opts.termination||[],compactContext:opts.compactContext===true,action:opts.action||'选择当前任务',icon:opts.icon||'◈',detail:opts.detail||[copy,`观察状态变化：${eventCopy}`,`本帧对应内核路径：${algo}`],source:opts.source||'FreeRTOS-Kernel/tasks.c'});
     const taskSrc='FreeRTOS-Kernel/tasks.c';
     function buildScene(){
       const mode=schedMode.value, isCoop=mode==='cooperative', canPreempt=!isCoop, slice=mode==='preempt-slice';
@@ -1398,6 +2173,41 @@ volatile size_t taskControlBlockBytes = sizeof( *pxNewTCB ); /* 临时测量 */<
           s('18 · port 恢复 A，延时 API 返回','port 恢复 A 的任务现场。A 从 vTaskDelay() 返回点继续执行；delay 不会自动重复调用，也不保证精确墙钟周期。',ready,'A','port','B 保存 · A 恢复','A 再次成为 CPU 上的运行任务。',{action:'A 从 delay 后继续',icon:'⇄',source:'FreeRTOS-Kernel/portable/<compiler>/<architecture>',detail:['切换到 A 的 TCB / 任务栈。','A 从被挂起的调用点继续，而不是从入口重新开始。','tick 精度、调度延迟与中断占用共同影响可观察时间。']})
         ];
       }
+      if(scenario.value==='lists'){
+        const start=['ready','ready','blocked','blocked','blocked','termination','suspended','ready'];
+        const cReady=['ready','ready','ready','blocked','suspended','termination','suspended','ready'];
+        const dReady=['ready','ready','ready','ready','suspended','termination','suspended','ready'];
+        const gReady=['ready','ready','ready','ready','suspended','termination','ready','ready'];
+        const eReady=['ready','ready','ready','ready','ready','termination','ready','ready'];
+        const eDeleted=['ready','ready','ready','ready','termination','termination','ready','ready'];
+        const quiet=['blocked','blocked','blocked','blocked','termination','termination','suspended','ready'];
+        const delayStart=['C · vTaskDelay · wake t+1','E · vTaskDelay · wake t+3','D · 队列等待超时 · wake t+5'];
+        const eventStart=['D · P5 · 队列接收（有限等待）','G · P2 · 队列接收（portMAX_DELAY）'];
+        const suspendedStart=['G · 无限期对象等待的状态节点','E · 显式 vTaskSuspend'];
+        const termStart=['F · 先前自删 · 等待 Idle 回收'];
+        return [
+          s('01 · 先看 8 个任务分别在哪条链表','这条轨迹把几个常见状态放在同一张图里：A 正在运行，B 在 Ready；C 只等时间，D 等队列且带超时；E 正在延时，稍后由 A 显式挂起；G 在 INCLUDE_vTaskSuspend=1 时以 portMAX_DELAY 无限期等队列，F 已自删、等待 Idle 清理。优先级编号只是相对示意。',start,'A','pick','多条链表同时保存不同条件','Ready 才是 CPU 候选集合；其余链表分别记录到期时间、等待对象、挂起状态或待回收任务。',{action:'A 运行 · 共 8 个任务',icon:'◎',delay:delayStart,event:eventStart,suspended:['G · 无限期对象等待的状态节点'],termination:termStart,source:taskSrc+' · Ready / delayed / suspended / termination lists',detail:['Ready：A(P4)、B(P2) 和 Idle(P0)；当前 A 仍留在 Ready[P4]。','Delay：C 是纯 vTaskDelay；D 等队列且有超时，E 也有一个延时期限。','对象事件：D(P5) 排在 G(P2) 前面；G 的 xStateListItem 同时在 Suspended。','F 已删除，但还不能立即释放自己的运行栈，等 Idle task 回收。']}),
+          s('02 · A 调用 vTaskSuspend(E)，把 E 从 Delay 移入挂起链表','E 原本正在等待延时。A 通过任务句柄显式挂起 E 后，内核移除 E 的延时状态节点，把它的 xStateListItem 放到 xSuspendedTaskList；E 不再因原来的到期 tick 自动醒来。',cReady,'A','lists','E：Delayed → Suspended','显式挂起的是指定任务；它与“等待对象但没有超时”在链表位置上可能相同，唤醒方式不同。',{action:'移除 E 的 delay 节点',icon:'⊣',delay:['C · vTaskDelay · wake t+1','D · 队列等待超时 · wake t+5'],event:eventStart,suspended:suspendedStart,termination:termStart,source:taskSrc+' · vTaskSuspend',detail:['vTaskSuspend(E) 先从 E 当前的状态链表摘除 xStateListItem。','E 没有对象等待项，所以本例只把状态节点插入 xSuspendedTaskList。','以后必须显式 vTaskResume(E) 才能让 E 回到 Ready。']}),
+          s('03 · tick 到期：纯延时任务 C 回到 Ready','tick 到达 C 的唤醒时刻，内核从 Delay list 移除 C 的状态节点，再把 C 插入 P3 Ready list。A 的优先级 P4 更高，所以 C 变为 Ready 后，A 仍继续运行。',cReady,'A','tick','C：Delayed → Ready','任务被唤醒只代表重新具备运行资格；是否立即运行仍由 Ready 优先级选择决定。',{action:'移除 C 的 xStateListItem',icon:'◷',delay:['D · 队列等待超时 · wake t+5'],event:eventStart,suspended:suspendedStart,termination:termStart,source:taskSrc+' · xTaskIncrementTick / prvAddTaskToReadyList',detail:['延时链表按预计唤醒 tick 升序，先检查最早到期项。','C 只使用 xStateListItem；它没有等待队列或信号量。','C 加入 Ready[P3]，但 A(P4) 仍是最高优先级 Ready 任务。']}),
+          s('04 · 队列收到数据：先唤醒最高优先级等待者 D','队列事件链表里 D 的优先级 P5 高于 G 的 P2，所以这次只解除 D。D 的事件节点从队列等待链表移除，状态节点从 Delay list 移除，再进入 Ready[P5]。',dReady,'A','lists','D：队列等待 → Ready','D 的有限期对象等待同时占用两条用途不同的链表；唤醒时两处登记都要解除。',{action:'移除 D 的事件节点和状态节点',icon:'↗',delay:[],event:['G · P2 · 队列接收（portMAX_DELAY）'],suspended:suspendedStart,termination:termStart,source:'FreeRTOS-Kernel/queue.c · xQueueGenericSend / xTaskRemoveFromEventList',detail:['同一个队列的普通等待链表按任务有效优先级排序，先选最高优先级等待者。','先移除 D 的 xEventListItem，再移除它的 xStateListItem。','D 回到 Ready 后优先级高于当前 A；现在请求重新调度。']}),
+          s('05 · 高优先级 D 就绪，检查是否立即切换',isCoop?'D 的 P5 高于 A 的 P4，但关闭抢占时，唤醒本身不会让 A 自动切走；A 继续运行，直到主动让出或进入阻塞。':'D 的 P5 高于当前运行任务 A 的 P4，因此请求切换。此处只发出请求，A 的寄存器现场还没有保存，D 也尚未开始执行。',dReady,'A',isCoop?'api':'switch',isCoop?'D 已 Ready · 等待 A 让出':'请求切换：A → D',isCoop?'合作式调度下 Ready 变化不会单独触发抢占。':'接下来先由 Ready 选择器确定目标，再由 port 完成实际现场交接。',{selected:isCoop?'A':'D',action:isCoop?'A 继续运行 · 之后显式 yield':'高优先级唤醒 · yield pending',icon:isCoop?'Ⅱ':'↗',delay:[],event:['G · P2 · 队列接收（portMAX_DELAY）'],suspended:suspendedStart,termination:termStart,source:'FreeRTOS-Kernel/queue.c · queueYIELD_IF_USING_PREEMPTION',detail:isCoop?['D 已进入 Ready[P5]，但不会因此自动抢占 A。','A 主动调用 taskYIELD() 或阻塞后，才进入任务选择。','合作式模式关闭的是自动抢占，不是 Ready 链表或优先级规则。']:['A、B、C、D、Idle 都在 Ready 链表中。','最高非空优先级是 P5，因此目标是 D。','请求切换不等于立刻改写 CPU 寄存器。']}),
+          s(isCoop?'06 · A 让出后，Ready 选择器选中 D':'06 · Ready 选择器选中 D',isCoop?'A 主动让出 CPU 后，内核只在 Ready 链表中选择：P5 是最高非空优先级，因此取出 D。':'内核只在 Ready 链表中选任务：先找到最高非空优先级 P5，再从该优先级链表取出 D。D 成为 pxCurrentTCB 指向的目标任务。',dReady,'A','pick','Ready[P5] → D','Delay、事件等待、挂起和清理链表都不参与这一步的 CPU 候选比较。',{selected:'D',action:'pxCurrentTCB 目标为 D',icon:'◎',delay:[],event:['G · P2 · 队列接收（portMAX_DELAY）'],suspended:suspendedStart,termination:termStart,source:taskSrc+' · taskSELECT_HIGHEST_PRIORITY_TASK',detail:['先挑最高非空优先级 Ready list。','再由该链表的 pxIndex 游标取得一个任务 owner。','同级轮转只发生在所选 Ready list 内。']}),
+          s('07 · port 保存 A、恢复 D','Kernel 已经选好 D；处理器移植层接下来保存 A 的运行现场，并从 D 自己的任务栈恢复现场。寄存器级 PendSV 过程会在本动画后面的完整现场路径中展开。',dReady,'D','port','CPU 交给 D','A 的现场留在 A 的栈和 TCB 中，之后再次选中 A 时可以从暂停处继续。',{action:'A 保存 · D 恢复',icon:'⇄',delay:[],event:['G · P2 · 队列接收（portMAX_DELAY）'],suspended:suspendedStart,termination:termStart,source:'FreeRTOS-Kernel/portable · PendSV / context switch',detail:['A 不再占用 CPU，但没有丢失执行进度。','port 从 D 的 TCB 取出栈顶并恢复寄存器。','D 从此前阻塞的队列接收 API 返回路径继续。']}),
+          s('08 · D 取走数据；G 仍在等同一个队列','D 从队列接收数据后继续运行。G 还在对象事件链表上；它的状态节点在 Suspended list，是因为它使用无限等待，而不是显式调用了 vTaskSuspend。',dReady,'D','api','D 的接收 API 返回','“状态链表在 Suspended”不表示事件等待已经消失；G 仍要等队列事件来解除等待。',{action:'D 收到队列数据',icon:'✓',delay:[],event:['G · P2 · 队列接收（portMAX_DELAY）'],suspended:suspendedStart,termination:termStart,source:'FreeRTOS-Kernel/queue.c · xQueueReceive',detail:['G 的 xEventListItem 仍挂在队列接收等待链表。','G 的 xStateListItem 位于 xSuspendedTaskList，表示无限期等待状态。','不能把 G 当作可由 vTaskResume 直接恢复的显式挂起任务。']}),
+          s('09 · 下一条队列数据到达，事件唤醒 G','队列再次有数据时，G 的事件节点从对象等待链表摘下；内核也从 xSuspendedTaskList 移除 G 的状态节点，再把 G 放回对应 Ready list。',gReady,'D','lists','G：无限等待 → Ready','事件到达才解除 G 的对象等待；仅经过 tick 不会让这个无限期等待自动醒来。',{action:'同时移除 G 的两个链表节点',icon:'↗',delay:[],event:[],suspended:['E · 显式 vTaskSuspend'],termination:termStart,source:'FreeRTOS-Kernel/tasks.c · xTaskRemoveFromEventList / prvAddTaskToReadyList',detail:['G 的 xEventListItem 离开队列事件链表。','G 的 xStateListItem 离开 Suspended list。','G 加入 Ready[P2]；当前 D 是 P5，所以 D 继续运行。']}),
+          s('10 · D 调用 vTaskResume(E)，只恢复显式挂起的 E','D 按任务句柄调用 vTaskResume(E)。内核从 Suspended list 摘下 E 的状态节点并把它加入 Ready[P6]。'+(isCoop?'合作式模式下 D 不会被自动抢占；稍后由 D 主动让出。':'E 优先级高于 D，因此调度器请求切换。'),eReady,'D',isCoop?'api':'switch',isCoop?'E：Suspended → Ready · D 继续':'E：Suspended → Ready','恢复指定任务和事件唤醒是两条不同路径；G 的无限期对象等待仍由队列事件管理。',{selected:isCoop?'D':'E',action:isCoop?'E 入 Ready[P6] · 等待让出':'E 入 Ready[P6] · 请求切换',icon:isCoop?'Ⅱ':'↗',delay:[],event:[],suspended:[],termination:termStart,source:taskSrc+' · vTaskResume',detail:['vTaskResume 通过句柄找到指定的显式挂起任务 E。','它移除 E 的 xStateListItem，并调用 Ready 插入路径。',isCoop?'关闭抢占时，D 继续运行到显式 yield 或阻塞。':'E 入 Ready 后优先级高于 D，因此请求重新调度。']}),
+          s(isCoop?'11 · D 让出后，选择器从 Ready[P6] 选中 E':'11 · 选择器从 Ready[P6] 选中 E','E 是当前最高优先级的 Ready 任务，所以内核更新当前任务指针，目标改为 E。G 已由队列事件唤醒，留在较低优先级 Ready[P2]。',eReady,'D','pick','Ready[P6] → E','显式恢复只把任务放回 Ready；最终谁运行仍由 Ready 优先级选择决定。',{selected:'E',action:'pxCurrentTCB 目标为 E',icon:'◎',delay:[],event:[],suspended:[],termination:termStart,source:taskSrc+' · taskSELECT_HIGHEST_PRIORITY_TASK',detail:['Ready 链表现在包含 E、D、A、B、C、G 和 Idle。','P6 是最高非空 Ready list。','选中 E 后，port 再保存 D 并恢复 E。']}),
+          s('12 · port 保存 D、恢复 E','处理器移植层完成这次任务现场交接。E 从显式挂起前保存的位置恢复运行；任务恢复不会重建它的栈或从入口重新开始。',eReady,'E','port','CPU 交给 E','这里把寄存器交接压成一个动画步骤；上方 PendSV / SVC 现场路径可以逐帧查看实际寄存器。',{compactContext:true,action:'D 保存 · E 恢复',icon:'⇄',delay:[],event:[],suspended:[],termination:termStart,source:'FreeRTOS-Kernel/portable · PendSV / context switch',detail:['vTaskResume 只完成状态迁移和切换请求。','port 保存 D 的现场，并从 E 的 TCB / 栈恢复现场。','E 从原来暂停的位置继续执行。']}),
+          s('13 · E 自删：从 Ready 移入待清理链表','E 调用 vTaskDelete(NULL) 删除自己。内核把 E 从 Ready 摘下，放到 xTasksWaitingTermination；E 仍在执行删除 API 的收尾，必须先切换出去才能安全回收它的栈。',eDeleted,'E','lists','E：Ready → 等待清理','F 先进入清理队列，E 后进入；这条链表按插入顺序等待 Idle 处理。',{action:'xTasksWaitingTermination = [F, E]',icon:'×',delay:[],event:[],suspended:[],termination:['F · 先入队','E · 当前任务自删后入队'],source:taskSrc+' · vTaskDelete',detail:['vTaskDelete(NULL) 表示删除调用者自身；本例假设 INCLUDE_vTaskDelete == 1。','当前任务还在使用自己的栈，不能在此刻释放；内核先登记到待清理链表。','动态分配的 TCB / 栈稍后由 Idle 清理；静态存储不会由内核释放。']}),
+          s('14 · E 让出 CPU，Ready 中下一位是 D','E 已不在 Ready 链表，选择器从其余 Ready 任务中找到最高优先级 D。xTasksWaitingTermination 只等待资源回收，不是运行候选队列。',eDeleted,'E','pick','Ready[P5] → D','即使刚自删的 E 仍在做 API 收尾，它也不会再被当作 Ready 任务选中。',{selected:'D',action:'pxCurrentTCB 目标为 D',icon:'◎',delay:[],event:[],suspended:[],termination:['F · 先入队','E · 等待切出后清理'],source:taskSrc+' · taskSELECT_HIGHEST_PRIORITY_TASK / vTaskDelete',detail:['Ready 选择忽略 termination list。','D 是剩余任务中最高优先级 Ready task。','D 恢复后，E 的栈已不再被 CPU 使用，Idle 才能安全释放。']}),
+          s('15 · D 恢复运行；E 的资源仍排队等待 Idle','port 保存 E 的删除路径现场并恢复 D。待清理链表仍是 F 在前、E 在后；实际释放发生在 Idle task 检查到这条链表时。',eDeleted,'D','port','CPU 交回 D','自删与内存回收是两个时刻：先退出任务现场，再由 Idle 逐个处理。',{compactContext:true,action:'E 切出 · D 恢复',icon:'⇄',delay:[],event:[],suspended:[],termination:['F · 先入队','E · 等待 Idle 清理'],source:'FreeRTOS-Kernel/portable · PendSV；tasks.c · vTaskDelete',detail:['E 已不再运行，但还没从 termination list 移除。','Idle task 取得 CPU 后才调用待清理路径。','listGET_OWNER_OF_HEAD_ENTRY 从队首取任务，按先入先处理。']}),
+          s('16 · 应用任务都进入下一轮等待，只剩 Idle Ready','示意 A、B、C、D、G 都已经阻塞或等待事件：延时任务进入 Delay list，有限期队列等待 D 同时进入 Delay 和 Event，G 的无限期队列等待仍同时占用 Suspended 和 Event。Ready 里只剩 Idle。',quiet,'D','switch','无应用任务可运行，准备切到 Idle','Idle 不是特殊的清理链表；它本身仍是最低优先级 Ready task，只有没有更高优先级 Ready 任务时才运行。',{selected:'I',action:'D 阻塞 · Idle 成为候选',icon:'⌛',delay:['C · 纯延时 · wake t+1','A · 纯延时 · wake t+2','B · 纯延时 · wake t+4','D · 队列等待超时 · wake t+5'],event:['D · 队列接收（有限等待）','G · 队列接收（portMAX_DELAY）'],suspended:['G · 无限期对象等待的状态节点'],termination:['F · 先入队','E · 后入队'],source:taskSrc+' · vTaskDelay / vTaskPlaceOnEventList / vTaskSuspend',detail:['图中把任务工作周期压缩成一次状态变化：所有应用任务都在等待下一条件。','有限期对象等待的 D 有两个节点，分别记录对象与超时时刻。','G 的对象等待没有超时，因此状态节点留在 Suspended，事件节点仍在队列链表。']}),
+          s('17 · Ready 只剩 P0：选择 Idle','D 正在从阻塞 API 让出 CPU，现场交接还未完成。调度器检查 Ready 集合，发现只有 Idle 仍就绪，于是选择它；其他等待链表都不是 CPU 候选。',quiet,'D','pick','Ready[P0] → Idle','Idle task 运行时检查待清理任务；其他链表仍按各自条件等待。',{selected:'I',action:'pxCurrentTCB 目标为 Idle',icon:'◎',delay:['C · wake t+1','A · wake t+2','B · wake t+4','D · queue timeout t+5'],event:['D · 有限期队列等待','G · 无限期队列等待'],suspended:['G · 无限期对象等待'],termination:['F · 先入队','E · 后入队'],source:taskSrc+' · taskSELECT_HIGHEST_PRIORITY_TASK / prvIdleTask',detail:['P0 是本例最低优先级；Idle 仍在 Ready[P0]。','它会被正常选择器选中，不是内核在 Ready 之外另找的线程。','接下来 Idle 检查 xTasksWaitingTermination。']}),
+          s('18 · port 保存 D 的现场，Idle 接手 CPU','内核已选中 Idle。port 保存 D 在阻塞 API 处的任务现场，再恢复 Idle 的任务现场；Idle 现在可以运行并检查待清理链表。',quiet,'I','port','CPU 从 D 交给 Idle','Idle 是正常调度的最低优先级任务；切换完成后才执行清理工作。',{compactContext:true,action:'D 保存 · Idle 恢复',icon:'⇄',delay:['C · wake t+1','A · wake t+2','B · wake t+4','D · queue timeout t+5'],event:['D · 有限期队列等待','G · 无限期队列等待'],suspended:['G · 无限期对象等待'],termination:['F · 先入队','E · 后入队'],source:'FreeRTOS-Kernel/portable · PendSV / context switch',detail:['D 的栈现场保留，队列事件到达或超时后可继续。','Idle 的 TCB 成为 pxCurrentTCB，CPU 从 Idle 的现场恢复。','随后 Idle 调用 prvCheckTasksWaitingTermination()。']}),
+          s('19 · Idle 从待清理链表队首取出 F','Idle 调用 prvCheckTasksWaitingTermination()，从 termination list 队首移除 F，再由 prvDeleteTCB() 清理其动态 TCB / 栈资源。',quiet,'I','lists','先清理先入队的 F','清理顺序由 termination list 的插入顺序决定，不按任务优先级挑选。',{action:'移除 F · 列表剩下 E',icon:'−',delay:['C · wake t+1','A · wake t+2','B · wake t+4','D · queue timeout t+5'],event:['D · 有限期队列等待','G · 无限期队列等待'],suspended:['G · 无限期对象等待'],termination:['E · 后入队'],source:taskSrc+' · prvCheckTasksWaitingTermination / prvDeleteTCB',detail:['Idle 从 xTasksWaitingTermination 的队首取 owner。','摘除 F 的 xStateListItem，并更新待清理计数。','动态创建时释放内核分配的 TCB 和栈；静态对象的应用存储不会被释放。']}),
+          s('20 · 再清理 E；五类链表的职责各不相同','Idle 继续处理队首 E。E 从待清理链表移除后，资源回收完成。此时可以对照看到：Ready 选 CPU，Delay 看时间，Event 等对象，Suspended 等恢复 / 无限等待事件，termination 等 Idle 回收。',quiet,'I','lists','待清理链表清空','清理链表不会把任务送回 Ready；删除任务的生命周期到此结束。',{action:'移除 E · termination list 为空',icon:'✓',delay:['C · wake t+1','A · wake t+2','B · wake t+4','D · queue timeout t+5'],event:['D · 有限期队列等待','G · 无限期队列等待'],suspended:['G · 无限期对象等待'],termination:[],source:taskSrc+' · prvCheckTasksWaitingTermination',detail:['Ready 是唯一直接参与 CPU 选择的任务集合。','其他列表描述等待条件或清理工作；满足条件后才可能回到 Ready。','动态资源回收完成后，F 和 E 都不会再次出现在调度候选中。']})
+        ];
+      }
       const rotates=slice; const same=['ready','ready','ready'];
       return [
         s('01 · A、B 同优先级，A 当前运行','单核 CPU 当前执行 A；A 与 B 仍同时位于相同优先级的 Ready list。Idle 在较低的 P0。',same,'A','pick','同级 Ready list','此场景专门展示 tick 时间片轮转，不涉及高优先级抢占。',{action:'Ready list 长度 = 2',icon:'⇆',detail:['Running task 在 FreeRTOS 状态上仍属于 Ready。','同级任务排在同一个 pxReadyTasksLists[priority] 链表。','当前工程是否轮转由配置与 list 长度共同决定。']}),
@@ -1432,6 +2242,10 @@ volatile size_t taskControlBlockBytes = sizeof( *pxNewTCB ); /* 临时测量 */<
       {match:'prvCopyDataFromQueue',title:'queue.c · prvCopyDataFromQueue',href:'../../FreeRTOS/FreeRTOS-Kernel/queue.c',lines:[[2711,'static void prvCopyDataFromQueue( Queue_t * const pxQueue,'],[2712,'                                  void * const pvBuffer )'],[2714,'    if( pxQueue->uxItemSize != ( UBaseType_t ) 0 )'],[2716,'        pxQueue->u.xQueue.pcReadFrom += pxQueue->uxItemSize;'],[2718,'        if( pxQueue->u.xQueue.pcReadFrom >= pxQueue->u.xQueue.pcTail )'],[2720,'            pxQueue->u.xQueue.pcReadFrom = pxQueue->pcHead;'],[2727,'        ( void ) memcpy( ( void * ) pvBuffer, ( void * ) pxQueue->u.xQueue.pcReadFrom, ( size_t ) pxQueue->uxItemSize );']]},
       {match:'queueYIELD_IF_USING_PREEMPTION',title:'queue.c · queueYIELD_IF_USING_PREEMPTION',href:'../../FreeRTOS/FreeRTOS-Kernel/queue.c',lines:[[89,'#if ( configUSE_PREEMPTION == 0 )'],[93,'    #define queueYIELD_IF_USING_PREEMPTION()'],[94,'#else'],[95,'    #if ( configNUMBER_OF_CORES == 1 )'],[96,'        #define queueYIELD_IF_USING_PREEMPTION()    portYIELD_WITHIN_API()'],[98,'        #define queueYIELD_IF_USING_PREEMPTION()    vTaskYieldWithinAPI()'],[100,'#endif']]},
       {match:'vTaskDelay',title:'tasks.c · vTaskDelay',href:'../../FreeRTOS/FreeRTOS-Kernel/tasks.c',lines:[[2677,'        if( xTicksToDelay > ( TickType_t ) 0U )'],[2679,'            vTaskSuspendAll();'],[2692,'                prvAddCurrentTaskToDelayedList( xTicksToDelay, pdFALSE );'],[2694,'            xAlreadyYielded = xTaskResumeAll();'],[2703,'        if( xAlreadyYielded == pdFALSE )'],[2705,'            taskYIELD_WITHIN_API();']]},
+      {match:'vTaskSuspend',title:'tasks.c · vTaskSuspend',href:'../../FreeRTOS/FreeRTOS-Kernel/tasks.c',lines:[[3438,'    void vTaskSuspend( TaskHandle_t xTaskToSuspend )'],[3455,'            if( uxListRemove( &( pxTCB->xStateListItem ) ) == ( UBaseType_t ) 0 )'],[3465,'            if( listLIST_ITEM_CONTAINER( &( pxTCB->xEventListItem ) ) != NULL )'],[3467,'                ( void ) uxListRemove( &( pxTCB->xEventListItem ) );'],[3474,'            vListInsertEnd( &xSuspendedTaskList, &( pxTCB->xStateListItem ) );']]},
+      {match:'vTaskResume',title:'tasks.c · vTaskResume',href:'../../FreeRTOS/FreeRTOS-Kernel/tasks.c',lines:[[3685,'    void vTaskResume( TaskHandle_t xTaskToResume )'],[3711,'                if( prvTaskIsTaskSuspended( pxTCB ) != pdFALSE )'],[3717,'                    ( void ) uxListRemove( &( pxTCB->xStateListItem ) );'],[3718,'                    prvAddTaskToReadyList( pxTCB );'],[3723,'                    taskYIELD_ANY_CORE_IF_USING_PREEMPTION( pxTCB );']]},
+      {match:'vTaskDelete',title:'tasks.c · vTaskDelete',href:'../../FreeRTOS/FreeRTOS-Kernel/tasks.c',lines:[[2355,'    void vTaskDelete( TaskHandle_t xTaskToDelete )'],[2371,'            if( uxListRemove( &( pxTCB->xStateListItem ) ) == ( UBaseType_t ) 0 )'],[2381,'            if( listLIST_ITEM_CONTAINER( &( pxTCB->xEventListItem ) ) != NULL )'],[2383,'                ( void ) uxListRemove( &( pxTCB->xEventListItem ) );'],[2404,'            if( ( xSchedulerRunning != pdFALSE ) && ( xTaskIsRunningOrYielding != pdFALSE ) )'],[2412,'                vListInsertEnd( &xTasksWaitingTermination, &( pxTCB->xStateListItem ) );'],[2417,'                ++uxDeletedTasksWaitingCleanUp;'],[2490,'                    taskYIELD_WITHIN_API();']]},
+      {match:'prvCheckTasksWaitingTermination',title:'tasks.c · Idle 清理待删除任务',href:'../../FreeRTOS/FreeRTOS-Kernel/tasks.c',lines:[[6491,'        prvCheckTasksWaitingTermination();'],[6816,'        while( uxDeletedTasksWaitingCleanUp > ( UBaseType_t ) 0U )'],[6826,'                        pxTCB = listGET_OWNER_OF_HEAD_ENTRY( ( &xTasksWaitingTermination ) );'],[6827,'                        ( void ) uxListRemove( &( pxTCB->xStateListItem ) );'],[6829,'                        --uxDeletedTasksWaitingCleanUp;'],[6834,'                prvDeleteTCB( pxTCB );']]},
       {match:'vTaskPlaceOnEventList',title:'tasks.c · vTaskPlaceOnEventList',href:'../../FreeRTOS/FreeRTOS-Kernel/tasks.c',lines:[[5879,'void vTaskPlaceOnEventList( List_t * const pxEventList,'],[5880,'                            const TickType_t xTicksToWait )'],[5884,'    configASSERT( pxEventList );'],[5900,'    vListInsert( pxEventList, &( pxCurrentTCB->xEventListItem ) );'],[5902,'    prvAddCurrentTaskToDelayedList( xTicksToWait, pdTRUE );']]},
       {match:'xTaskRemoveFromEventList',title:'tasks.c · xTaskRemoveFromEventList',href:'../../FreeRTOS/FreeRTOS-Kernel/tasks.c',lines:[[6021,'    pxUnblockedTCB = listGET_OWNER_OF_HEAD_ENTRY( pxEventList );'],[6023,'    listREMOVE_ITEM( &( pxUnblockedTCB->xEventListItem ) );'],[6025,'    if( uxSchedulerSuspended == ( UBaseType_t ) 0U )'],[6027,'        listREMOVE_ITEM( &( pxUnblockedTCB->xStateListItem ) );'],[6028,'        prvAddTaskToReadyList( pxUnblockedTCB );'],[6053,'        if( pxUnblockedTCB->uxPriority > pxCurrentTCB->uxPriority )'],[6058,'            xReturn = pdTRUE;'],[6062,'            xYieldPendings[ 0 ] = pdTRUE;']]},
       {match:'prvAddTaskToReadyList',title:'tasks.c · prvAddTaskToReadyList',href:'../../FreeRTOS/FreeRTOS-Kernel/tasks.c',lines:[[291,'#define prvAddTaskToReadyList( pxTCB )'+selectorSlash],[292,'    do {'+selectorSlash],[294,'        taskRECORD_READY_PRIORITY( ( pxTCB )->uxPriority );'+selectorSlash],[295,'        listINSERT_END( &( pxReadyTasksLists[ ( pxTCB )->uxPriority ] ), &( ( pxTCB )->xStateListItem ) );'+selectorSlash],[297,'    } while( 0 )']]},
@@ -1493,6 +2307,10 @@ volatile size_t taskControlBlockBytes = sizeof( *pxNewTCB ); /* 临时测量 */<
       } else if(entry.match==='prvCopyDataToQueue')active=[2652,2653,2657,2699];
       else if(entry.match==='prvCopyDataFromQueue')active=[2716,2720,2727];
       else if(entry.match==='vTaskDelay')active=context.includes('yield')||context.includes('让出')?[2703,2705]:[2677,2679,2692,2694];
+      else if(entry.match==='vTaskSuspend')active=[3455,3465,3467,3474];
+      else if(entry.match==='vTaskResume')active=[3711,3717,3718,3723];
+      else if(entry.match==='vTaskDelete')active=[2371,2404,2412,2417,2490];
+      else if(entry.match==='prvCheckTasksWaitingTermination')active=[6491,6816,6826,6827,6834];
       else if(entry.match==='xTaskRemoveFromEventList')active=[6021,6023,6027,6028,6053,6058,6062];
       else if(entry.match==='vTaskPlaceOnEventList')active=[5900,5902];
       else if(entry.match==='prvAddTaskToReadyList')active=[294,295];
@@ -1582,6 +2400,10 @@ volatile size_t taskControlBlockBytes = sizeof( *pxNewTCB ); /* 临时测量 */<
       if(entry?.match==='listGET_OWNER_OF_NEXT_ENTRY')return '推进 pxIndex，跳过链表 end marker 后读取当前 list item 的 owner。';
       if(entry?.match==='listCURRENT_LIST_LENGTH')return '编译条件允许时检查同级 Ready list 长度；长度大于 1 才请求时间片切换。';
       if(entry?.match==='queueYIELD_IF_USING_PREEMPTION')return '这个宏按配置分支决定是否调用 port yield：关闭抢占时为空操作，单核抢占时进入 portYIELD_WITHIN_API。';
+      if(entry?.match==='vTaskSuspend')return '按任务句柄找到目标，移除它原来的状态节点（必要时也移除事件节点），再把状态节点放入 xSuspendedTaskList。';
+      if(entry?.match==='vTaskResume')return '确认目标是显式挂起任务后，移除它的状态节点、加入 Ready list，并按抢占配置请求切换。';
+      if(entry?.match==='vTaskDelete')return '删除任务时从状态链表和事件链表摘除节点；当前运行任务先进入 termination list，切出后再由 Idle 回收。';
+      if(entry?.match==='prvCheckTasksWaitingTermination')return 'Idle task 从 termination list 队首摘除已删除任务，并调用 prvDeleteTCB 处理资源回收。';
       if(source==='FreeRTOS-Kernel/tasks.c')return '本帧建立 CPU 与 Ready list 的初始状态快照，没有执行新的源码语句；具体任务选择从后续调度步骤开始展示。';
       const lineSummaries={
         xQueueReceive:{1665:'读取队列当前消息数。',1669:'判断队列中是否有可接收消息。',1672:'把队首 item 复制到应用接收缓冲区。',1674:'复制成功后减少队列消息计数。',1703:'零等待时不阻塞，直接返回空结果。',1718:'记录本次等待的超时起点。',1733:'暂时挂起调度器，保护阻塞前的复查过程。',1741:'恢复调度前再次确认队列仍为空。',1744:'将接收任务挂入队列接收等待列表。',1747:'恢复调度器并处理等待期间挂起的唤醒。',1749:'必要时主动让出 CPU，等待任务切换。'},
@@ -1590,6 +2412,10 @@ volatile size_t taskControlBlockBytes = sizeof( *pxNewTCB ); /* 临时测量 */<
         prvCopyDataFromQueue:{2714:'itemSize 非零时执行队列数据复制。',2716:'读取前先把读游标移到下一个 item。',2718:'检查读游标是否到达环形数据区末端。',2720:'到达末端后把读游标绕回队首。',2727:'把队列槽中的 item 复制到应用缓冲区。'},
         queueYIELD_IF_USING_PREEMPTION:{89:'预处理条件根据抢占配置选择宏定义。',93:'关闭抢占时，这个队列唤醒 yield 宏为空操作。',96:'单核抢占路径把宏映射到 portYIELD_WITHIN_API。',98:'多核路径改由内核的 vTaskYieldWithinAPI 处理。'},
         vTaskDelay:{2677:'只有正延时量才进入阻塞延时路径。',2679:'挂起调度器以安全更新任务状态。',2692:'把当前任务按唤醒 tick 插入延时列表。',2694:'恢复调度器并检查是否已经发生切换。',2703:'确认恢复调度时尚未完成 yield。',2705:'请求切换，让其他 Ready 任务运行。'},
+        vTaskSuspend:{3455:'从任务当前的状态链表摘除 xStateListItem。',3465:'检查目标任务是否还挂在对象事件链表。',3467:'若有对象等待，也移除 xEventListItem。',3474:'把状态节点加入 xSuspendedTaskList。'},
+        vTaskResume:{3711:'确认句柄指向显式挂起的任务，而非无限期对象等待。',3717:'从挂起链表移除任务状态节点。',3718:'把任务加入对应优先级的 Ready list。',3723:'按抢占配置请求必要的任务切换。'},
+        vTaskDelete:{2371:'把任务从当前 Ready / Blocked 状态链表移除。',2381:'检查任务是否还在对象事件等待链表。',2383:'从对象事件链表摘除等待节点。',2404:'检查任务是否正在运行或即将让出。',2412:'运行中的自删任务进入 termination list。',2417:'通知 Idle 有待清理任务。',2490:'当前运行任务删除后强制请求重新调度。'},
+        prvCheckTasksWaitingTermination:{6491:'Idle 循环调用待清理检查。',6816:'只要有待清理计数就继续处理。',6826:'从 termination list 队首取出任务 owner。',6827:'摘除待清理任务的状态节点。',6829:'减少待清理计数。',6834:'调用 prvDeleteTCB 释放动态资源。'},
         vTaskPlaceOnEventList:{5884:'断言事件等待列表指针有效。',5900:'将当前任务的事件列表项插入等待列表。',5902:'再把任务状态项加入延时列表，以支持超时。'},
         xTaskRemoveFromEventList:{6021:'从事件等待列表头部取得待唤醒任务。',6023:'移除该任务的事件列表项。',6027:'调度器未挂起时，再移除其 Blocked 状态项。',6028:'把解除阻塞的任务加入对应 Ready list。',6053:'比较唤醒任务与当前任务的有效优先级。',6058:'更高优先级唤醒会返回需要切换。',6062:'调度器挂起时记录待处理的 yield。'},
         prvAddTaskToReadyList:{294:'更新最高 Ready 优先级追踪信息。',295:'把任务状态项插入其优先级对应的 Ready list。'},
@@ -1691,16 +2517,18 @@ volatile size_t taskControlBlockBytes = sizeof( *pxNewTCB ); /* 临时测量 */<
       cmOutgoingFp.closest('label').hidden=startupScenario;
       cmIncomingFp.closest('label').hidden=startupScenario;
       const steps=buildLinkedScene(); stage=Math.max(0,Math.min(stage,steps.length-1)); const item=steps[stage]; const tasks=definitions[scenario.value];
-      const priorityValues=[...new Set(tasks.map(t=>t.priority))].sort((a,b)=>b-a);
+      const priorityValues=[...new Set(tasks.map(t=>t.priority))].sort((a,b)=>b-a); const readyPriorities=tasks.filter((t,index)=>item.states[index]==='ready').map(t=>t.priority); const highestReadyPriority=readyPriorities.length?Math.max(...readyPriorities):-1;
       schedLanes.innerHTML=priorityValues.map((priority,index)=>{
-        const allAtPriority=tasks.filter(t=>t.priority===priority); const laneTasks=allAtPriority.filter(t=>!['blocked','not-created'].includes(item.states[tasks.indexOf(t)])); const label=allAtPriority[0].priority===0?'P0 · Idle':`P${priority} · ${allAtPriority[0].rank}`;
-        const chips=laneTasks.map(t=>{const state=item.states[tasks.indexOf(t)];const current=item.current===t.id&&state!=='blocked';const selected=item.selected===t.id;const targetLabel=(item.contextFlow==='switch'&&item.contextStepIndex<9)||item.contextFlow==='select'?'TARGET · vTaskSwitchContext':item.current&&item.selected&&item.current!==item.selected?'CANDIDATE · 未切换':'NEXT · pxCurrentTCB';return `<div class="task-chip ${current?'current':''} ${selected?'selected':''}" aria-label="${t.name}，${current?'CPU 运行中':selected?'已选为下一任务':'Ready'}"><span class="avatar">${t.id}</span><span><b>${t.name}</b><small>${current?'RUNNING · CPU':selected?targetLabel:state==='ready'?'READY':'READY'}</small></span>${current?'<i class="state-dot"></i>':''}</div>`}).join('')||'<span class="wait-empty">当前无 Ready task</span>';
-        return `<div class="priority-lane ${index===0?'top':''}"><div class="lane-label"><strong>${label}</strong><span>Ready list</span></div><div class="lane-items">${chips||'<span class="wait-empty">空</span>'}</div></div>`;
+        const allAtPriority=tasks.filter(t=>t.priority===priority); const laneTasks=allAtPriority.filter(t=>item.states[tasks.indexOf(t)]==='ready'); const label=allAtPriority[0].priority===0?'P0 · Idle':`P${priority} · ${allAtPriority[0].rank}`;
+        const chips=laneTasks.map(t=>{const state=item.states[tasks.indexOf(t)];const current=item.current===t.id&&state==='ready';const selected=item.selected===t.id&&state==='ready';const targetLabel=(item.contextFlow==='switch'&&item.contextStepIndex<9)||item.contextFlow==='select'?'TARGET · vTaskSwitchContext':item.current&&item.selected&&item.current!==item.selected?'CANDIDATE · 未切换':'NEXT · pxCurrentTCB';return `<div class="task-chip ${current?'current':''} ${selected?'selected':''}" aria-label="${t.name}，${current?'CPU 运行中':selected?'已选为下一任务':'Ready'}"><span class="avatar">${t.id}</span><span><b>${t.name}</b><small>${current?'RUNNING · CPU':selected?targetLabel:'READY'}</small></span>${current?'<i class="state-dot"></i>':''}</div>`}).join('')||'<span class="wait-empty">当前无 Ready task</span>';
+        return `<div class="priority-lane ${priority===highestReadyPriority?'top':''}"><div class="lane-label"><strong>${label}</strong><span>Ready list</span></div><div class="lane-items">${chips||'<span class="wait-empty">空</span>'}</div></div>`;
       }).join('');
       const contextHandler=(item.contextFlow==='switch'&&item.contextStepIndex<17)||(item.contextFlow==='select')||(item.contextFlow==='startup'&&item.contextStepIndex>=8&&item.contextStepIndex<12); const handlerName=item.contextFlow==='startup'?'SVC Handler':'PendSV Handler'; const currentTask=tasks.find(t=>t.id===item.current); document.getElementById('cpuTask').innerHTML=`${contextHandler?handlerName:currentTask?currentTask.name:'无任务'}<small>${contextHandler?'Handler mode · Thread task 暂停':`当前任务 · ${item.current||'—'}`}</small>`;
       document.getElementById('cpuAction').textContent=item.action;
       document.getElementById('delayWaiters').innerHTML=item.delay.length?item.delay.map(x=>`<span class="wait-chip delay">${x}</span>`).join(''):'<span class="wait-empty">无延时等待任务</span>';
       document.getElementById('eventWaiters').innerHTML=item.event.length?item.event.map(x=>`<span class="wait-chip">${x}</span>`).join(''):'<span class="wait-empty">无事件等待任务</span>';
+      document.getElementById('suspendedWaiters').innerHTML=item.suspended.length?item.suspended.map(x=>`<span class="wait-chip suspended">${x}</span>`).join(''):'<span class="wait-empty">无挂起任务</span>';
+      document.getElementById('terminationWaiters').innerHTML=item.termination.length?item.termination.map(x=>`<span class="wait-chip termination">${x}</span>`).join(''):'<span class="wait-empty">无待清理任务</span>';
       document.getElementById('eventIcon').textContent=item.icon;document.getElementById('eventTitle').textContent=item.eventTitle;document.getElementById('eventCopy').textContent=item.eventCopy;
       stageTitle.textContent=item.title;stageCopy.textContent=item.copy;
       document.getElementById('schedBreakdown').innerHTML=item.detail.map(line=>`<li>${line}</li>`).join('');document.getElementById('schedSource').textContent=`源码定位：${item.source}`;
@@ -1708,7 +2536,7 @@ volatile size_t taskControlBlockBytes = sizeof( *pxNewTCB ); /* 临时测量 */<
       document.getElementById('ctxTask').textContent=`pxCurrentTCB → ${contextTcb||'—'}${(item.contextFlow==='switch'&&item.contextStepIndex<9)||item.contextFlow==='select'?` · vTaskSwitchContext 目标 ${item.contextIncoming}`:item.current&&item.current!==item.selected&&item.selected?` · 候选 ${item.selected} 尚未切换`:''}`;
       document.querySelectorAll('.algo-line').forEach(line=>line.classList.toggle('active',line.dataset.code===item.algoFocus));
       renderSelectorAlgorithm(item,steps,stage);
-      const timeline=document.getElementById('schedTimeline'),dotFragment=document.createDocumentFragment();timeline.style.gridTemplateColumns=`repeat(${steps.length},1fr)`;steps.forEach((step,i)=>{const dot=document.createElement('button');dot.type='button';dot.className=`time-dot ${i<stage?'done':i===stage?'active':''}`;dot.dataset.stepIndex=String(i);dot.title=`第 ${i+1} 步：${step.title}`;dot.setAttribute('aria-label',`跳转到第 ${i+1} 步：${step.title}`);if(i===stage)dot.setAttribute('aria-current','step');dotFragment.appendChild(dot)});timeline.replaceChildren(dotFragment);
+      const timeline=document.getElementById('schedTimeline'),dotFragment=document.createDocumentFragment();timeline.classList.toggle('long',steps.length>36);timeline.style.gridTemplateColumns=steps.length>36?'none':`repeat(${steps.length},1fr)`;steps.forEach((step,i)=>{const dot=document.createElement('button');dot.type='button';dot.className=`time-dot ${i<stage?'done':i===stage?'active':''}`;dot.dataset.stepIndex=String(i);dot.title=`第 ${i+1} 步：${step.title}`;dot.setAttribute('aria-label',`跳转到第 ${i+1} 步：${step.title}`);if(i===stage)dot.setAttribute('aria-current','step');dotFragment.appendChild(dot)});timeline.replaceChildren(dotFragment);
       document.getElementById('schedStepCount').textContent=`步骤 ${stage+1} / ${steps.length}`;document.getElementById('schedProgress').style.width=`${steps.length<=1?100:(stage/(steps.length-1))*100}%`;
       document.querySelectorAll('#schedPipeline .pipe-step').forEach(el=>{const order={api:0,lists:1,tick:2,pick:3,cursor:3,priority:3,switch:3,port:4}[item.algo]??0;const ix=[...document.querySelectorAll('#schedPipeline .pipe-step')].indexOf(el);el.classList.toggle('active',ix===order);el.classList.toggle('done',ix<order)});
       document.getElementById('prevStep').disabled=stage===0;document.getElementById('nextStep').disabled=stage===steps.length-1;
@@ -1766,7 +2594,7 @@ volatile size_t taskControlBlockBytes = sizeof( *pxNewTCB ); /* 临时测量 */<
       const transitions=[];
       base.forEach((portStep,portIndex)=>{
         const selectionIndex=portIndex-1;
-        if(portStep.algo!=='port'||selectionIndex<0)return;
+        if(portStep.algo!=='port'||portStep.compactContext||selectionIndex<0)return;
         const selection=base[selectionIndex];
         const outgoing=selection.current;
         const incoming=selection.selected||selection.current;
