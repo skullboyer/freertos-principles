@@ -787,51 +787,61 @@
           <div class="scheduler-trigger-grid">
             <section class="scheduler-trigger-card">
               <div class="scheduler-trigger-card-head"><span class="scheduler-trigger-no">01</span><h4>当前任务阻塞或延时</h4></div>
-              <div class="scheduler-trigger-fact"><b>链表变化</b>任务真正阻塞或执行正数延时（<code>vTaskDelay(n&gt;0)</code>）时，<code>xStateListItem</code> 从 Ready 移到延时链表；配置支持的无限等待也可能移到 <code>xSuspendedTaskList</code>。若在等队列、信号量等对象，<code>xEventListItem</code> 还会挂到对象等待链表。</div>
+              <div class="scheduler-trigger-fact"><b>链表变化</b>有限等待时，<code>xStateListItem</code> 从 Ready 移到延时链表。只有同时满足 <code>INCLUDE_vTaskSuspend == 1</code>、等待时间为 <code>portMAX_DELAY</code>，且这条内核调用路径允许无限阻塞时，状态节点才进入 <code>xSuspendedTaskList</code>；因此 <code>portMAX_DELAY</code> 本身不一定代表无限等待。等待队列、信号量等对象时，<code>xEventListItem</code> 还会挂到对象等待链表；单纯调用 <code>vTaskDelay()</code> 不会挂对象事件节点。</div>
               <div class="scheduler-trigger-fact"><b>切换影响</b>当前任务已不能继续运行，内核要改选其他 Ready 任务；如果没有其他应用任务，可能选中 Idle。</div>
               <div class="source-links"><a href="../../FreeRTOS/FreeRTOS-Kernel/tasks.c">tasks.c · vTaskDelay</a><a href="../../FreeRTOS/FreeRTOS-Kernel/queue.c">queue.c · xQueueReceive</a></div>
             </section>
             <section class="scheduler-trigger-card">
               <div class="scheduler-trigger-card-head"><span class="scheduler-trigger-no">02</span><h4>Tick 让等待时间到期</h4></div>
-              <div class="scheduler-trigger-fact"><b>链表变化</b>内核从延时链表摘下到期任务的 <code>xStateListItem</code>，并加入对应优先级的 Ready 链表。若它同时在等对象，超时路径也会摘下 <code>xEventListItem</code>。</div>
+              <div class="scheduler-trigger-fact"><b>什么时候处理</b>延时链表按唤醒 tick 从早到晚排列。每次 tick 到来后，内核检查队首任务的唤醒时间；到期就处理它，并继续检查后续队首，直到队列为空或队首尚未到期。</div>
+              <div class="scheduler-trigger-fact"><b>实际怎么摘、怎么加</b><code>listREMOVE_ITEM(&amp;( pxTCB-&gt;xStateListItem ))</code> 用节点的 <code>pxContainer</code> 找到原链表，再通过 <code>pxPrevious</code> 和 <code>pxNext</code> 接起它的前后节点，并清空该节点的所属链表指针。随后 <code>prvAddTaskToReadyList(pxTCB)</code> 将同一个状态节点插到 <code>pxReadyTasksLists[pxTCB-&gt;uxPriority]</code> 队尾，并更新 Ready 优先级记录；整个 TCB 不会被复制。</div>
+              <div class="scheduler-trigger-fact"><b>对象等待的收尾</b>若 <code>xEventListItem</code> 仍挂在队列、信号量等对象的等待链表，超时路径也会将它摘下，因为任务已经不再等待该对象；单纯 <code>vTaskDelay()</code> 没有这个节点需要处理。</div>
               <div class="scheduler-trigger-fact"><b>切换影响</b>到期本身不保证切换：抢占开启且唤醒任务优先级更高时请求切换；同级轮转还要看时间片配置和 Ready 任务数。</div>
-              <div class="source-links"><a href="../../FreeRTOS/FreeRTOS-Kernel/tasks.c">tasks.c · xTaskIncrementTick</a></div>
+              <div class="source-links"><a href="../../FreeRTOS/FreeRTOS-Kernel/tasks.c">tasks.c · xTaskIncrementTick / prvAddTaskToReadyList</a><a href="../../FreeRTOS/FreeRTOS-Kernel/include/list.h">list.h · listREMOVE_ITEM</a></div>
             </section>
             <section class="scheduler-trigger-card">
               <div class="scheduler-trigger-card-head"><span class="scheduler-trigger-no">03</span><h4>任务上下文中的对象或通知唤醒</h4></div>
-              <div class="scheduler-trigger-fact"><b>链表变化</b>对象按自己的规则找到符合条件的等待任务。对象等待项从事件链表摘下，状态节点从阻塞状态链表移到 Ready；任务通知不使用对象事件节点，但等待任务也会转入 Ready。</div>
-              <div class="scheduler-trigger-fact"><b>切换影响</b>任务只是变成可运行；是否立刻抢占当前任务，仍取决于优先级和抢占配置。事件组等对象也可能一次唤醒多个任务。</div>
+              <div class="scheduler-trigger-fact"><b>队列、信号量</b>等待链表按任务当前有效优先级排序；资源可用时，通常先唤醒队首的最高优先级任务。同优先级按进入等待链表的先后排列。信号量使用队列的等待机制。</div>
+              <div class="scheduler-trigger-fact"><b>事件组</b>设置事件位时，内核检查等待者各自要求的位：等待任意位或等待全部位。满足条件的任务都可被唤醒，所以一次设置可能唤醒多个任务。</div>
+              <div class="scheduler-trigger-fact"><b>任务通知</b>发送方通过任务句柄指定接收者；若该任务正阻塞等待通知，内核就唤醒它。通知不使用对象事件等待链表。</div>
+              <div class="scheduler-trigger-fact"><b>唤醒后的链表变化</b>调度器正常运行时，对象唤醒会摘下目标任务的 <code>xEventListItem</code> 和阻塞状态节点，再把状态节点加入 Ready；若调度器正挂起，则先记入 <code>xPendingReadyList</code>，恢复时再转入 Ready。任务通知只需移动状态节点。最终谁运行，仍由调度器决定。</div>
+              <div class="scheduler-trigger-fact"><b>切换影响</b>变成 Ready 不等于立即运行；是否抢占当前任务，仍取决于优先级和抢占配置。</div>
               <div class="source-links"><a href="../../FreeRTOS/FreeRTOS-Kernel/queue.c">queue.c · 对象等待与唤醒</a><a href="../../FreeRTOS/FreeRTOS-Kernel/event_groups.c">event_groups.c</a><a href="../../FreeRTOS/FreeRTOS-Kernel/tasks.c">tasks.c · 通知</a></div>
             </section>
             <section class="scheduler-trigger-card">
               <div class="scheduler-trigger-card-head"><span class="scheduler-trigger-no">04</span><h4>ISR 中唤醒等待任务</h4></div>
-              <div class="scheduler-trigger-fact"><b>链表变化</b>FromISR API 完成对象等待项摘除和状态节点转 Ready；若调度器正挂起，则先放进 <code>xPendingReadyList</code>，稍后再正式进入 Ready。</div>
-              <div class="scheduler-trigger-fact"><b>切换影响</b>API 通过 <code>xHigherPriorityTaskWoken</code> 报告是否需要更高优先级任务抢占。调用方按 port 约定使用 <code>portYIELD_FROM_ISR()</code>，在中断退出时切换。</div>
-              <div class="source-links"><a href="../../FreeRTOS/FreeRTOS-Kernel/queue.c">queue.c · FromISR API</a><a href="../../FreeRTOS/FreeRTOS-Kernel/portable/GCC/ARM_CM4F/portmacro.h">portmacro.h · ISR yield</a></div>
+              <div class="scheduler-trigger-fact"><b>“调度器挂起”是什么</b>常见于应用用 <code>vTaskSuspendAll()</code>/<code>xTaskResumeAll()</code> 包住一段不希望被任务切走的操作，也见于内核在部分队列、等待路径中短暂保护调度数据。它只暂停任务切换，不关中断，也不是把任务放入 <code>xSuspendedTaskList</code>。若 ISR 此时唤醒任务，内核先记入 <code>xPendingReadyList</code>，恢复调度器时再转入 Ready。</div>
+              <div class="scheduler-trigger-fact"><b>为什么等中断退出</b>ISR 尚未处理完时，任务切换不能打断它。FromISR API 用 <code>xHigherPriorityTaskWoken</code> 报告是否需要切换；调用方把结果交给 <code>portYIELD_FROM_ISR()</code>，请求在当前中断完成后处理。</div>
+              <div class="scheduler-trigger-fact"><b>Cortex-M4F 上怎么切</b><code>portYIELD_FROM_ISR()</code> 会挂起 PendSV。PendSV 被设为最低中断优先级，因此要等当前及更高优先级中断处理完，才在返回任务前保存旧任务现场、选择并恢复新任务。</div>
+              <div class="source-links"><a href="../../FreeRTOS/FreeRTOS-Kernel/queue.c">queue.c · FromISR API</a><a href="../../FreeRTOS/FreeRTOS-Kernel/tasks.c">tasks.c · vTaskSuspendAll / xTaskResumeAll</a><a href="../../FreeRTOS/FreeRTOS-Kernel/portable/GCC/ARM_CM4F/portmacro.h">portmacro.h · ISR yield</a><a href="../../FreeRTOS/FreeRTOS-Kernel/portable/GCC/ARM_CM4F/port.c">port.c · PendSV</a></div>
             </section>
             <section class="scheduler-trigger-card">
               <div class="scheduler-trigger-card-head"><span class="scheduler-trigger-no">05</span><h4>主动让出 CPU 或时间片到期</h4></div>
-              <div class="scheduler-trigger-fact"><b><code>taskYIELD()</code></b>提出重新调度请求，但任务状态不变，仍留在 Ready；同级选择时推进链表游标。若没有更合适的任务，可能再次选中自己。</div>
-              <div class="scheduler-trigger-fact"><b>时间片 tick</b>仅当抢占和时间片都启用、当前优先级 Ready 链表有多个任务时，才请求同级轮转；任务不会因此移入延时或等待链表。</div>
+              <div class="scheduler-trigger-fact"><b>什么时候调用 <code>taskYIELD()</code></b>任务代码想主动触发一次重新选择时调用，例如同优先级任务协作，或关闭抢占时在一小段工作后主动让出。调度器仍先选更高优先级任务；同级有其他 Ready 任务时轮到下一个，低优先级任务不会因此越级运行。</div>
+              <div class="scheduler-trigger-fact"><b>为什么仍在 Ready</b><code>taskYIELD()</code> 不让任务等待任何条件；它仍具备运行资格，状态节点继续留在 Ready 链表。若没有更合适的任务，调度器可能马上再次选中它；换出后，它以后会从调用点后继续执行。只有调用 <code>vTaskDelay()</code> 或等待队列等对象，才会进入相应等待链表。</div>
+              <div class="scheduler-trigger-fact"><b>时间片 tick</b>仅当抢占和时间片都启用、当前优先级 Ready 链表有多个任务时，tick 才请求同级轮转；这同样不会把任务变成阻塞状态。</div>
               <div class="source-links"><a href="../../FreeRTOS/FreeRTOS-Kernel/include/task.h">task.h · taskYIELD</a><a href="../../FreeRTOS/FreeRTOS-Kernel/tasks.c">tasks.c · 时间片判断</a><a href="../../FreeRTOS/FreeRTOS-Kernel/list.c">list.c · 链表游标</a></div>
             </section>
             <section class="scheduler-trigger-card">
               <div class="scheduler-trigger-card-head"><span class="scheduler-trigger-no">06</span><h4>创建、恢复或提前解除等待</h4></div>
               <div class="scheduler-trigger-fact"><b>链表变化</b>新任务直接进入 Ready；<code>vTaskResume()</code> 把状态节点从 Suspended 移到 Ready；<code>xTaskAbortDelay()</code> 可把阻塞任务提前从延时链表移到 Ready，并在对象等待时摘下事件节点。</div>
-              <div class="scheduler-trigger-fact"><b>切换影响</b>调度器运行且抢占开启时，若因此进入 Ready 的任务优先级高于当前任务，内核请求切换；否则它先等待 CPU。</div>
+              <div class="scheduler-trigger-fact"><b>切换影响</b>这是创建、恢复或解除等待的 API 路径根据优先级提出的 yield 请求，不必等 tick：例如 <code>xTaskCreate()</code> 和 <code>vTaskResume()</code> 可在新任务进入 Ready 后请求切换；<code>xTaskAbortDelay()</code> 则在 <code>xTaskResumeAll()</code> 时处理请求。只有抢占开启且新就绪任务优先级更高时才会请求；tick 另行负责延时到期和符合条件的时间片轮转。</div>
               <div class="source-links"><a href="../../FreeRTOS/FreeRTOS-Kernel/tasks.c">tasks.c · 创建 / Resume / AbortDelay</a></div>
             </section>
             <section class="scheduler-trigger-card">
               <div class="scheduler-trigger-card-head"><span class="scheduler-trigger-no">07</span><h4>任务优先级发生变化</h4></div>
-              <div class="scheduler-trigger-fact"><b>链表变化</b>若任务已在 Ready，内核把它的状态节点从旧优先级链表移到新优先级链表；Blocked 或 Suspended 任务仍留在原状态链表。</div>
-              <div class="scheduler-trigger-fact"><b>切换影响</b>新优先级让某个 Ready 任务高于当前任务，或当前运行任务被降级时，抢占配置允许的话会请求切换。互斥量优先级继承与恢复也会改变有效优先级。</div>
+              <div class="scheduler-trigger-fact"><b>优先级怎么改变</b>应用可在运行中调用 <code>vTaskPrioritySet(taskHandle, newPriority)</code> 修改任务的基准优先级（句柄传 <code>NULL</code> 表示当前任务）；启用互斥量时，高优先级任务等待锁会使内核临时提高较低优先级持锁任务的有效优先级，释放锁后再按规则恢复。</div>
+              <div class="scheduler-trigger-fact"><b>链表变化</b>Ready 任务的状态节点会从旧优先级链表移到新优先级链表。Blocked 或 Suspended 任务的优先级仍按规则更新，但状态节点留在原状态链表：延时链表按唤醒 tick 排序，挂起链表记录挂起状态，都不按优先级分组。任务之后唤醒或恢复时，再按当时有效优先级加入对应 Ready 链表。</div>
+              <div class="scheduler-trigger-fact"><b>切换影响</b>抢占开启时，若这次调整让更高优先级任务 Ready，或让当前运行任务降级而有其他任务应当先运行，优先级 API 路径会提出 yield 请求；不必等 tick。Tick 的到期唤醒和时间片轮转是另外的请求来源。</div>
               <div class="source-links"><a href="../../FreeRTOS/FreeRTOS-Kernel/tasks.c">tasks.c · vTaskPrioritySet / priority inheritance</a></div>
             </section>
             <section class="scheduler-trigger-card">
               <div class="scheduler-trigger-card-head"><span class="scheduler-trigger-no">08</span><h4>显式挂起或删除任务</h4></div>
-              <div class="scheduler-trigger-fact"><b>链表变化</b><code>vTaskSuspend()</code> 把状态节点移到 <code>xSuspendedTaskList</code>；若任务正在等对象，也会摘下对象事件节点。<code>vTaskDelete()</code> 先把任务从原状态和事件链表摘除。</div>
-              <div class="scheduler-trigger-fact"><b>切换与清理</b>若挂起或删除的是当前任务，必须改选其他任务。自删除的当前任务随后进入 <code>xTasksWaitingTermination</code>，由 Idle task 执行删除清理；动态分配的 TCB 和栈会在此释放。</div>
-              <div class="source-links"><a href="../../FreeRTOS/FreeRTOS-Kernel/tasks.c">tasks.c · vTaskSuspend / vTaskDelete</a></div>
+              <div class="scheduler-trigger-fact"><b>为什么摘对象事件节点</b><code>xEventListItem</code> 是任务在队列、信号量等对象等待队列里的登记。挂起或删除一个正在等对象的任务时，内核把这个登记摘掉，避免对象之后把它当作等待者唤醒；挂起的任务要等 <code>vTaskResume()</code> 才能重新就绪。</div>
+              <div class="scheduler-trigger-fact"><b>谁来选下一个任务</b>若当前任务挂起自己或调用 <code>vTaskDelete(NULL)</code> 删除自己，API 会请求让出 CPU。之后由调度器从 Ready 任务中按优先级等规则选人，用户不用指定接替者。</div>
+              <div class="scheduler-trigger-fact"><b>删除后谁释放资源</b>任务已不在运行时，内核通常在 <code>vTaskDelete()</code> 路径回收它动态分配的 TCB 和任务栈；静态提供的缓冲区不会释放。任务创建的队列、信号量、内存等应用资源要由应用自行清理；删除也不会自动释放任务持有的互斥量。</div>
+              <div class="scheduler-trigger-fact"><b>Idle task 做什么</b>删除自己时，任务还在使用自己的栈，不能立刻释放；内核把它放入 <code>xTasksWaitingTermination</code>，等 Idle task 获得运行机会后回收内核分配的 TCB/栈。用户不必手动调用这项内核清理，但应在删除前处理好应用资源，并让 Idle task 有机会运行。</div>
+              <div class="source-links"><a href="../../FreeRTOS/FreeRTOS-Kernel/tasks.c">tasks.c · vTaskSuspend / vTaskDelete</a><a href="../../FreeRTOS/FreeRTOS-Kernel/tasks.c">tasks.c · prvCheckTasksWaitingTermination / prvDeleteTCB</a></div>
             </section>
           </div>
           <div class="scheduler-trigger-notes">
